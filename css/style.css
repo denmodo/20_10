@@ -132,8 +132,7 @@ input[type="number"] { text-align: center; font-size: 1.4rem; font-weight: 700; 
 }
 .female-chip:hover { border-color: var(--primary); transform: translateY(-2px); }
 .female-chip.selected { border-color: var(--primary); background: rgba(108,140,255,0.18); box-shadow: 0 0 0 3px rgba(108,140,255,0.15); }
-.female-chip .avatar { width: 38px; height: 38px; margin: 0 auto 6px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 0.95rem; background: linear-gradient(135deg, var(--primary), var(--primary-2)); overflow: hidden; }
-.female-chip .avatar img { width: 100%; height: 100%; object-fit: cover; }
+.female-chip .avatar { width: 38px; height: 38px; margin: 0 auto 6px; font-size: 0.9rem; }
 .female-chip .name { font-size: 0.74rem; line-height: 1.2; }
 .female-chip .stars { font-size: 0.65rem; color: var(--gold); }
 
@@ -191,8 +190,18 @@ input[type="number"] { text-align: center; font-size: 1.4rem; font-weight: 700; 
 .row-item .rank-pill { min-width: 30px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 0.74rem; font-weight: 700; background: rgba(255,255,255,0.1); }
 .row-item .r-name { flex: 1; font-weight: 600; }
 .row-item .r-price { color: var(--warn); font-weight: 700; font-size: 0.82rem; }
-.row-item .avatar-sm { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-weight: 700; font-size: 0.8rem; background: linear-gradient(135deg, var(--primary), var(--primary-2)); overflow: hidden; flex-shrink: 0; }
-.row-item .avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---------- AVATAR (dùng chung mọi nơi — kích thước cố định) ---------- */
+.avatar, .avatar-sm {
+  display: grid; place-items: center; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  overflow: hidden; line-height: 1; font-weight: 700; text-transform: uppercase;
+}
+.avatar > img, .avatar-sm > img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.avatar { width: 42px; height: 42px; border-radius: 50%; font-size: 0.9rem; }
+.avatar-sm { width: 30px; height: 30px; border-radius: 9px; font-size: 0.8rem; }
 
 /* ---------- Team cards ---------- */
 .teams { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
@@ -200,8 +209,6 @@ input[type="number"] { text-align: center; font-size: 1.4rem; font-weight: 700; 
 .team-card:hover { border-color: rgba(108,140,255,0.5); }
 .team-card.incomplete { border-color: rgba(255,93,115,0.4); }
 .team-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
-.team-head .avatar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: linear-gradient(135deg, var(--primary), var(--primary-2)); overflow: hidden; flex-shrink: 0; }
-.team-head .avatar img { width: 100%; height: 100%; object-fit: cover; }
 .team-head .t-name { font-weight: 700; font-size: 0.95rem; }
 .team-head .t-strength { font-size: 0.7rem; color: var(--gold); }
 .team-members { display: grid; gap: 6px; margin-bottom: 12px; }

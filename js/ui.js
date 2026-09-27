@@ -24,8 +24,10 @@ export function initials(name) {
 /** Tạo HTML avatar: ảnh nếu có, ngược lại là chữ cái đầu. */
 export function avatarHTML(person, cls = 'avatar') {
   if (person && person.img) {
+    const initial = esc(initials(person.name));
     return `<span class="${cls}"><img src="${esc(person.img)}" alt="${esc(person.name)}"
-      onerror="this.parentElement.textContent='${esc(initials(person.name))}'"></span>`;
+      loading="lazy" referrerpolicy="no-referrer" decoding="async"
+      onerror="this.parentElement.textContent='${initial}'"></span>`;
   }
   return `<span class="${cls}">${esc(initials(person && person.name))}</span>`;
 }
