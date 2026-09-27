@@ -7,7 +7,8 @@ import {
   createInitialState, validateBid, rankBids, resolveAuction,
   fillRemaining, balanceReport, startRound, advanceRound,
   remaining, needed, nextMaleForAuction, isFinished, sumMaleScore,
-  maxAllowedBid, cheapestAvailablePrice,
+  maxAllowedBid, cheapestAvailablePrice, applyBid, bidBoard,
+  highestBid, nextValidBid,
 } from '../js/auction.js';
 
 export function runTests() {
@@ -96,23 +97,15 @@ export function runTests() {
     ok(!r.ok, 'phải từ chối bid < giá sàn');
   });
 
-  test('Validate: từ chối bid = 0 khi chưa có nam (must-buy)', () => {
+  test('Validate: cho phép bỏ qua lượt (amount = 0)', () => {
     const st = createInitialState();
-    const r = validateBid({ femaleId: 'F1', maleId: 'M12', amount: 0, state: st });
-    ok(!r.ok, 'phải bắt buộc bid > 0');
-  });
-
-  test('Validate: cho phép bid = 0 khi đã có đủ 1 nam', () => {
-    const st = createInitialState();
-    st.teams.F1.maleIds.push('M12');
-    st.teams.F1.spent = computeMinPrice(MALES.find(m => m.id === 'M12'));
     const r = validateBid({ femaleId: 'F1', maleId: 'M1', amount: 0, state: st });
-    ok(r.ok, 'phải cho phép bỏ qua');
+    ok(r.ok, 'trong đấu giá công khai, ai cũng được quyền không tham gia');
   });
 
   test('Validate: từ chối sai bước giá', () => {
     const st = createInitialState();
-    const male = MALES.find(m => m.rank === 1); // minPrice 40
+    const male = MALES.find(m => m.rank === 1); // giá sàn 40
     const r = validateBid({ femaleId: 'F1', maleId: male.id, amount: 43, state: st });
     ok(!r.ok, 'phải từ chối vì 43-40 không chia hết cho 5');
   });
@@ -123,6 +116,87 @@ export function runTests() {
     ok(validateBid({ femaleId: 'F1', maleId: male.id, amount: 40, state: st }).ok, 'giá sàn phải OK');
     ok(validateBid({ femaleId: 'F1', maleId: male.id, amount: 45, state: st }).ok, 'bước giá phải OK');
     ok(validateBid({ femaleId: 'F1', maleId: male.id, amount: 60, state: st }).ok, 'bội số phải OK');
+  });
+
+  /* ---------- Nhóm 3c: ĐẤU GIÁ CÔNG KHAI ---------- */
+  test('Công khai: người sau phải trả CAO HƠN giá đang dẫn', () => {
+    const st = createInitialState();
+    st.currentMaleId = 'M1';
+    st.bids = { F1: 45 };
+    const r = validateBid({ femaleId: 'F2', maleId: 'M1', amount: 45, state: st });
+    ok(!r.ok, 'bằng giá dẫn đầu cũng bị từ chối');
+  });
+
+  test('Công khai: từ chối khi tự trả giá khi đang dẫn đầu', () => {
+    const st = createInitialState();
+    st.currentMaleId = 'M1';
+    st.bids = { F1: 45 };
+    const r = validateBid({ femaleId: 'F1', maleId: 'M1', amount: 50, state: st });
+    ok(!r.ok, 'đang dẫn đầu thì không cần trả thêm');
+  });
+
+  test('Công khai: nextValidBid = giá sàn khi chưa ai trả', () => {
+    const male = MALES.find(m => m.rank === 1);
+    eq(nextValidBid('M1', {}, MALES, SETTINGS), computeMinPrice(male, MALES, SETTINGS), 'giá khởi điểm:');
+  });
+
+  test('Công khai: nextValidBid = giá dẫn + bước giá', () => {
+    const male = MALES.find(m => m.rank === 1);
+    const minP = computeMinPrice(male, MALES, SETTINGS);
+    eq(nextValidBid('M1', { F1: minP }, MALES, SETTINGS), minP + SETTINGS.minIncrement, 'giá vượt:');
+  });
+
+  test('Công khai: applyBid ghi giá mới + trả về state mới', () => {
+    let st = createInitialState();
+    st = startRound(st);
+    const minP = computeMinPrice(MALES.find(m => m.id === st.currentMaleId), MALES, SETTINGS);
+    const res = applyBid(st, 'F1', minP, MALES, SETTINGS);
+    ok(res.ok, 'phải thành công');
+    eq(res.state.bids.F1, minP, 'giá phải được ghi:');
+    eq(st.bids.F1, undefined, 'state gốc không đổi (immutable)');
+  });
+
+  test('Công khai: applyBid từ chối giá thấp hơn người dẫn', () => {
+    let st = createInitialState();
+    st = startRound(st);
+    const minP = computeMinPrice(MALES.find(m => m.id === st.currentMaleId), MALES, SETTINGS);
+    st = applyBid(st, 'F1', minP, MALES, SETTINGS).state;
+    const res = applyBid(st, 'F2', minP, MALES, SETTINGS);
+    ok(!res.ok, 'không được bằng giá người dẫn');
+  });
+
+  test('Công khai: bidBoard xếp hạng đúng, người cao nhất dẫn đầu', () => {
+    const board = bidBoard({ F1: 50, F2: 70, F3: 60 }, MALES, SETTINGS);
+    eq(board[0].femaleId, 'F2', 'F2 dẫn đầu:');
+    ok(board[0].leading, 'cờ leading phải true');
+    eq(board[1].femaleId, 'F3');
+    eq(board[2].femaleId, 'F1');
+  });
+
+  test('Công khai: highestBid bỏ qua giá 0 và âm', () => {
+    ok(highestBid({ F1: 0, F2: -5 }, MALES, SETTINGS) === null, 'toàn giá vô hiệu -> null');
+    eq(highestBid({ F1: 0, F2: 55 }, MALES, SETTINGS).amount, 55, 'giá hợp lệ:');
+  });
+
+  test('Chống bắn tỉa: trả giá phút chót -> isSnipe = true', () => {
+    const st = createInitialState();
+    st.currentMaleId = 'M1';
+    st.roundEndsAt = Date.now() + 5000;         // còn 5s (< antiSnipeSeconds)
+    const male = MALES.find(m => m.rank === 1);
+    const r = validateBid({ femaleId: 'F1', maleId: 'M1',
+      amount: computeMinPrice(male, MALES, SETTINGS), state: st });
+    ok(r.ok && r.isSnipe, 'phải đánh dấu snipe');
+  });
+
+  test('Chống bắn tỉa: applyBid gia hạn đồng hồ', () => {
+    let st = createInitialState();
+    st = startRound(st);
+    st.roundEndsAt = Date.now() + 5000;
+    const before = st.roundEndsAt;
+    const minP = computeMinPrice(MALES.find(m => m.id === st.currentMaleId), MALES, SETTINGS);
+    const res = applyBid(st, 'F1', minP, MALES, SETTINGS);
+    ok(res.extended, 'phải gia hạn');
+    eq(res.state.roundEndsAt, before + SETTINGS.antiSnipeExtend * 1000, 'cộng đúng số giây:');
   });
 
   /* ---------- Nhóm 3b: LUẬT GIỮ TIỀN DỰ PHÒNG ---------- */

@@ -29,6 +29,12 @@ export const SETTINGS = {
   bidSeconds: 60,                // thời gian mỗi lượt đấu giá (giây)
   tieBreakSeed: 20260927,        // seed bốc thăm → kết quả tái lập được
 
+  // ---- ĐẤU GIÁ CÔNG KHAI (ai cũng thấy giá hiện tại) ----
+  // Khi có người trả giá trong X giây cuối, tự động cộng thêm thời gian
+  // để tránh "bắn tỉa" (snipe) ở phút chót.
+  antiSnipeSeconds: 15,          // nếu bid trong X giây cuối thì gia hạn
+  antiSnipeExtend: 15,           // cộng thêm bao nhiêu giây khi bị snipe
+
   // Ngưỡng cảnh báo lệch sức mạnh giữa các đội
   balanceWarnStdDev: 4.0,
 };

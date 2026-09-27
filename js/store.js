@@ -59,6 +59,7 @@ export function remoteToState(remote, females = FEMALES) {
     round: meta.round || 1,
     currentMaleId: meta.currentMaleId || null,
     bids: remote.bids || {},
+    pending: remote.pending || {},
     teams: teamsFromRemote(remote.teams, females.map(f => f.id)),
     boughtMaleIds: meta.boughtMaleIds ? Object.keys(meta.boughtMaleIds) : [],
     usedMales: meta.usedMales ? Object.keys(meta.usedMales) : [],
@@ -77,8 +78,8 @@ class MockStore {
     this.code = code;
     this.key = `auction:${code}`;
     this.chan = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(this.key) : null;
-    this.stateCb = () => {};
-    this.presenceCb = () => {};
+    this.stateCbs = [];
+    this.presenceCbs = [];
     this.statusCb = () => {};
     this.clientId = 'c' + Math.random().toString(36).slice(2, 10);
     this._onChan = (ev) => {
@@ -118,8 +119,9 @@ class MockStore {
 
   _emit() {
     const d = this._read();
-    this.stateCb(d);                       // raw remote object (khớp shape Firebase)
-    this.presenceCb(this._presenceList(d));
+    for (const cb of this.stateCbs) cb(d);              // raw remote object
+    const list = this._presenceList(d);
+    for (const cb of this.presenceCbs) cb(list);
   }
 
   _presenceList(d) {
@@ -140,6 +142,29 @@ class MockStore {
     const d = this._ensure();
     d.bids = d.bids || {};
     d.bids[femaleId] = amount;
+    this._write(d);
+  }
+
+  /** Người chơi gửi ý định trả giá — host sẽ xác nhận. */
+  async submitBid(femaleId, amount) {
+    const d = this._ensure();
+    d.pending = d.pending || {};
+    d.pending[femaleId] = { amount, ts: Date.now() };
+    this._write(d);
+  }
+
+  /** Ghi giá đã được host xác nhận (hiển thị công khai). */
+  async writeBids(bids, roundEndsAt) {
+    const d = this._ensure();
+    d.bids = { ...bids };
+    if (roundEndsAt) d.meta.roundEndsAt = roundEndsAt;
+    this._write(d);
+  }
+
+  /** Xoá pending sau khi host đã xử lý. */
+  async clearPending() {
+    const d = this._ensure();
+    d.pending = {};
     this._write(d);
   }
 
@@ -202,14 +227,26 @@ class MockStore {
 
   async setHostOnline(v) { return this.updateMeta({ hostOnline: !!v }); }
 
+  /** Rời phòng: xoá presence ngay để host thấy offline liền. */
+  async clearPresence() {
+    const d = this._ensure();
+    if (d.presence) delete d.presence[this.clientId];
+    this._write(d);
+    if (this._hb) { clearInterval(this._hb); this._hb = null; }
+  }
+
   onState(cb) {
-    this.stateCb = cb;
+    this.stateCbs.push(cb);
     // Phát ngay trạng thái hiện tại — tránh mất event khi đăng ký sau connect()
     const d = this._read();
     cb(d);                                  // raw remote object
-    this.presenceCb(this._presenceList(d));
+    const list = this._presenceList(d);
+    for (const p of this.presenceCbs) p(list);
   }
-  onPresence(cb) { this.presenceCb = cb; }
+  onPresence(cb) {
+    this.presenceCbs.push(cb);
+    cb(this._presenceList(this._read()));
+  }
   onStatus(cb) { this.statusCb = cb; cb({ connected: true, error: null }); }
 
   close() {
@@ -226,8 +263,8 @@ class FirebaseStore {
   constructor(code) {
     this.code = code;
     this.ref = null;
-    this.stateCb = () => {};
-    this.presenceCb = () => {};
+    this.stateCbs = [];
+    this.presenceCbs = [];
     this.statusCb = () => {};
     this.clientId = 'c' + Math.random().toString(36).slice(2, 10);
     this._unsub = [];
@@ -270,7 +307,7 @@ class FirebaseStore {
 
     this._unsub.push(dbMod.onValue(this.root, snap => {
       this._latest = snap.val();
-      this.stateCb(this._latest);              // raw remote object
+      for (const cb of this.stateCbs) cb(this._latest);   // raw remote object
     }, err => {
       // Ví dụ: database bị deactivated, hoặc rules từ chối
       this.lastError = (err && err.message) || 'Không đọc được dữ liệu Firebase';
@@ -281,9 +318,10 @@ class FirebaseStore {
     this._unsub.push(dbMod.onValue(dbMod.ref(this.db, `rooms/${this.code}/presence`), snap => {
       const now = Date.now();
       const p = snap.val() || {};
-      this.presenceCb(Object.entries(p)
+      const list = Object.entries(p)
         .map(([id, v]) => ({ id, ...v }))
-        .filter(x => now - (x.ts || 0) < 60000));
+        .filter(x => now - (x.ts || 0) < 60000);
+      for (const cb of this.presenceCbs) cb(list);
     }));
   }
 
@@ -330,6 +368,20 @@ class FirebaseStore {
   async updateMeta(patch) { return this.fns.update(this.root, { meta: { ...(this._latest?.meta || {}), ...patch } }); }
   async setBid(femaleId, amount) { return this.fns.set(this.fns.ref(this.db, `rooms/${this.code}/bids/${femaleId}`), amount); }
   async clearBids() { return this.fns.set(this.fns.ref(this.db, `rooms/${this.code}/bids`), null); }
+  /** Người chơi gửi ý định trả giá — host sẽ xác nhận. */
+  async submitBid(femaleId, amount) {
+    return this.fns.set(this.fns.ref(this.db, `rooms/${this.code}/pending/${femaleId}`), { amount, ts: Date.now() });
+  }
+  /** Ghi giá đã được host xác nhận (công khai). */
+  async writeBids(bids, roundEndsAt) {
+    const payload = { bids: { ...bids } };
+    if (roundEndsAt) payload['meta/roundEndsAt'] = roundEndsAt;
+    return this.fns.update(this.fns.ref(this.db, `rooms/${this.code}`), payload);
+  }
+  /** Xoá pending sau khi host đã xử lý. */
+  async clearPending() {
+    return this.fns.set(this.fns.ref(this.db, `rooms/${this.code}/pending`), null);
+  }
   /** Xoá sạch phòng (bids, meta, teams) trên Firebase — GIỮ presence. */
   async resetRoom(teams) {
     return this.fns.update(this.fns.ref(this.db, `rooms/${this.code}`), {
@@ -356,6 +408,14 @@ class FirebaseStore {
     await this.fns.set(pRef, { ...info, ts: Date.now() });
     this.fns.onDisconnect(pRef).remove();
     if (!this._hb) this._hb = setInterval(() => this.fns.set(pRef, { ...info, ts: Date.now() }), 20000);
+    this._presenceRef = pRef;
+  }
+
+  /** Rời phòng: xoá presence ngay để host thấy offline liền. */
+  async clearPresence() {
+    if (this._presenceRef) {
+      try { await this.fns.remove(this._presenceRef); } catch {}
+    }
   }
 
   async setHostOnline(v) {
@@ -369,11 +429,11 @@ class FirebaseStore {
   }
 
   onState(cb) {
-    this.stateCb = cb;
+    this.stateCbs.push(cb);
     // Nếu đã có dữ liệu thì phát ngay, tránh màn hình trắng tới lần cập nhật kế tiếp
     if (this._latest !== null) cb(this._latest);   // raw remote object
   }
-  onPresence(cb) { this.presenceCb = cb; }
+  onPresence(cb) { this.presenceCbs.push(cb); }
   onStatus(cb) {
     this.statusCb = cb;
     cb({ connected: this.connected, error: this.lastError });

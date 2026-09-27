@@ -5,11 +5,11 @@
  * Chỉ công bố kết quả khi phase = reveal.
  * ============================================================= */
 import { SETTINGS, FEMALES, MALES, computeMinPrice } from '../config.js';
-import { createInitialState, remaining, needed, balanceReport } from '../auction.js';
+import { createInitialState, remaining, needed, balanceReport, bidBoard } from '../auction.js';
 import { openRoom, remoteToState } from '../store.js';
-import { qs, esc, fmt, avatarHTML, startCountdown, bindStatus } from '../ui.js';
+import { qs, readRoleParam, esc, fmt, avatarHTML, startCountdown, bindStatus } from '../ui.js';
 
-const ROOM = qs('room', 'main');
+const ROOM = readRoleParam('room', 'main');
 
 const room = openRoom(ROOM);
 await room.connect();
@@ -98,7 +98,20 @@ function renderAuction() {
           </div>`).join('')}
       </div>`;
   } else if (S.phase === 'bidding') {
-    revealBox.innerHTML = '<p class="muted center mt">Bid đang được giữ kín.</p>';
+    const board = bidBoard(S.bids, MALES, SETTINGS);
+    revealBox.innerHTML = board.length
+      ? `<div class="divider"></div>
+         <div class="live-board">
+           <div class="live-head"><span>Giá cao nhất</span><b>${fmt(board[0].amount)}</b></div>
+           <div class="live-leader">${esc(nameF(board[0].femaleId))} đang dẫn đầu</div>
+           <div class="bid-list">${board.map((e, i) => `
+             <div class="bid-row ${i === 0 ? 'win' : ''}">
+               <span class="pos">${e.place}</span>
+               <span>${esc(nameF(e.femaleId))}</span>
+               <span class="amount">${fmt(e.amount)}</span>
+             </div>`).join('')}</div>
+         </div>`
+      : '<p class="muted center mt">Chưa ai trả giá.</p>';
   } else {
     revealBox.innerHTML = '';
   }

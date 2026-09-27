@@ -16,9 +16,11 @@ Chỉ dùng **HTML + CSS + JavaScript thuần** (ES modules) và **Firebase Real
 | 🙋 **Người chơi** | Đăng nhập bằng mật khẩu riêng, đặt giá kín, xem đội của mình và đối thủ |
 | 👀 **Xem** | Bảng trực tiếp — giữ kín bid đang mở, chỉ hiện kết quả khi chốt |
 | 📱 **Mobile-first** | Bố cục 1 cột, nút to, chữ gọn — dùng tốt trên điện thoại |
-| 🔒 **Bid kín** | Người chơi không thấy bid của nhau |
+| 🔒 **Đấu giá công khai** | Mọi người thấy giá cao nhất + ai đang dẫn; ai muốn thắng phải trả cao hơn |
+| ⚡ **Realtime** | Giá nhảy tức thì trên mọi thiết bị |
+| 🛡 **Chống bắn tỉa** | Trả giá phút chót → tự động gia hạn thêm 15 giây |
 | ⚖️ **Công bằng** | Ngân sách theo sức mạnh nữ, giá sàn theo rank nam, **luật giữ tiền dự phòng**, tie-break 4 cấp, kết quả tái lập được |
-| 🧪 **Test** | **38 unit test** chạy trên Node hoặc trình duyệt |
+| 🧪 **Test** | **47 unit test** chạy trên Node hoặc trình duyệt |
 | 🔌 **Offline mode** | Chưa cấu hình Firebase vẫn chạy được (mô phỏng realtime bằng `BroadcastChannel`) |
 
 ---
@@ -161,15 +163,13 @@ Tinh chỉnh bằng `minReservePerMale` trong `config.js` (0 = tắt).
 | 2 | Mua nam **thứ hai** |
 | Bổ sung | Nam không ai mua được gán tự động, **ưu tiên đội yếu nhận nam mạnh** |
 
-Trong mỗi lượt: host mở → **bid kín** (không ai thấy của nhau) → đếm ngược 60s → **chốt** → công bố.
+Trong mỗi lượt: host mở → **trả giá công khai** (ai cũng thấy giá dẫn đầu) → đếm ngược 60s
+(có chống bắn tỉa) → **chốt** → công bố.
 
-### Tie-break khi đồng giá (theo thứ tự)
+### Chống bắn tỉa (anti-snipe)
 
-1. **Giá cao hơn** thắng
-2. Người **chưa có nam** thắng người đã có *(đảm bảo đủ đội hình)*
-3. **Điểm còn lại sau bid thấp hơn** thắng *(cân bằng ngân sách)*
-4. **Tổng sức mạnh nam đã có thấp hơn** thắng *(đội yếu được ưu tiên)*
-5. **Bốc thăm ngẫu nhiên seeded** — tái lập được, 100% công bằng khi 4 tiêu chí trên bằng nhau
+Trả giá trong **15 giây cuối** → đồng hồ tự cộng thêm **15 giây**, để không ai thắng
+nhờ "núp" tới giây chót. Tinh chỉnh qua `antiSnipeSeconds` / `antiSnipeExtend`.
 
 ### Báo cáo cân bằng
 
@@ -237,6 +237,8 @@ export const SETTINGS = {
   minIncrement: 5,              // bước giá
   minReservePerMale: 10,        // tiền tối thiểu giữ lại cho mỗi nam còn thiếu
   bidSeconds: 60,               // thời gian mỗi lượt
+  antiSnipeSeconds: 15,         // bid trong X giây cuối thì gia hạn
+  antiSnipeExtend: 15,          // cộng thêm bao nhiêu giây khi bị snipe
   // ...
 };
 
@@ -258,14 +260,14 @@ export const MALES = [
 ## 🧪 Kiểm thử
 
 ```bash
-npm test                 # 38 unit test (Node)
+npm test                 # 47 unit test (Node)
 npm run simulate         # mô phỏng 4 kịch bản bid + báo cáo cân bằng
 # hoặc mở test/tests.html trong trình duyệt
 ```
 
-Bao gồm 38 test: ngân sách, giá sàn, validate bid, **luật giữ tiền dự phòng**,
-tie-break, chốt lượt, vòng bổ sung, mô phỏng toàn giải, và các bất biến
-(immutability, không vượt ngân sách).
+Bao gồm 47 test: ngân sách, giá sàn, **luật đấu giá công khai** (phải cao hơn người dẫn),
+**chống bắn tỉa**, luật giữ tiền dự phòng, chốt lượt, vòng bổ sung, mô phỏng toàn giải,
+và các bất biến (immutability, không vượt ngân sách).
 
 `npm run simulate` chạy 4 kịch bản (tiết kiệm / hung hăng / cân bằng / nữ yếu all-in)
 và in báo cáo σ để bạn kiểm tra luật trước buổi chơi thật:

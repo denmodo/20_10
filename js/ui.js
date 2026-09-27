@@ -7,6 +7,27 @@ export function qs(name, fallback = '') {
   return new URLSearchParams(location.search).get(name) ?? fallback;
 }
 
+/**
+ * Đọc tham số role (room, f) bền vững:
+ *  1. URL query (?room=...&f=...)  — nguồn chính, luôn thắng
+ *  2. sessionStorage               — dự phòng khi hosting làm mất query
+ *     (ví dụ `serve` redirect player.html?... -> /player)
+ * Nhờ vậy F5 hoặc điều hướng nội bộ vẫn giữ đúng người chơi.
+ */
+export function readRoleParam(name, fallback = '') {
+  const url = new URLSearchParams(location.search).get(name);
+  const key = `role:${name}`;
+  if (url) {
+    try { sessionStorage.setItem(key, url); } catch {}
+    return url;
+  }
+  try {
+    const saved = sessionStorage.getItem(key);
+    if (saved) return saved;
+  } catch {}
+  return fallback;
+}
+
 /** Chống XSS khi chèn text do người dùng nhập. */
 export function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({

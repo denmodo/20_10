@@ -15,6 +15,12 @@
           }
         },
 
+        "pending": {
+          "$femaleId": {
+            ".validate": "newData.hasChildren(['amount','ts'])"
+          }
+        },
+
         "teams": {
           "$femaleId": {
             "budget": { ".validate": "newData.isNumber() && newData.val() >= 0" },

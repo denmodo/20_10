@@ -3,6 +3,18 @@
 Mục tiêu: **6 đội**, mỗi đội = **1 nữ + 2 nam**. Đấu giá vui vẻ, công bằng, minh bạch,
 không cần server riêng (chỉ HTML/CSS/JS + Firebase Realtime Database).
 
+## Kiểu đấu giá: **CÔNG KHAI NHẢY LIÊN TỤC** (live / ascending)
+
+> ⚠️ Bản này KHÔNG dùng đấu giá kín. Mọi người **đều thấy giá cao nhất hiện tại**
+> và **ai đang dẫn đầu**. Ai muốn thắng phải trả **cao hơn** người đang dẫn.
+
+```
+Giá khởi điểm = giá sàn của nam
+Người đầu tiên  → trả đúng giá khởi điểm
+Người tiếp theo → phải trả ≥ giáDẫn + bướcGiá (5 điểm)
+Hết giờ (có chống bắn tỉa) → người dẫn đầu thắng
+```
+
 ---
 
 ## 1. Vì sao cần "luật" thay vì đấu giá tự do?
@@ -99,46 +111,42 @@ Với `minReservePerMale = 10` (trong `config.js`):
 
 ---
 
-## 4. Chia lượt (round) — chống dồn điểm cuối
+## 4. Chia lượt (round)
 
-Thay vì đấu giá tự do, chia **2 vòng**:
+Chia **2 vòng**:
 
 ```
-Vòng 1: mỗi nữ mua nam THỨ NHẤT (bắt buộc)
+Vòng 1: mỗi nữ mua nam THỨ NHẤT
 Vòng 2: mỗi nữ mua nam THỨ HAI
 ```
 
 Trong mỗi vòng:
-1. Host bấm **Mở bid** → tất cả nữ nhập bid **kín** (không ai thấy bid của nhau).
-2. Hết giờ (countdown 60s) hoặc tất cả đã bid → **Chốt lượt**.
-3. Engine tính ai thắng → công bố → hiển thị đội hình.
+1. Host bấm **Bắt đầu** → giá khởi điểm = giá sàn của nam.
+2. Ai muốn mua thì bấm **Trả giá** — giá nhảy lên tức thì, **mọi người thấy ngay**.
+3. Người khác thấy giá đang dẫn → bấm **Vượt giá** để trả cao hơn (≥ +5).
+4. Hết giờ (countdown 60s) hoặc host **Chốt lượt** → người dẫn đầu thắng.
 
-Lợi ích:
-- **Kín (sealed-bid)** ⇒ không ai "hù" theo người khác ⇒ không khí công bằng.
-- **2 vòng** ⇒ không thể "để dành hết cho cuối" vì vòng 1 bắt buộc phải mua.
-- Countdown tạo kịch tính nhưng **không** cho phép bid sau khi chốt.
+### Chống "bắn tỉa" (anti-snipe)
+
+Nếu có người trả giá trong **15 giây cuối**, đồng hồ **tự động cộng thêm 15 giây**.
+Nhờ vậy không ai thắng nhờ "núp" tới giây chót — mọi người đều có cơ hội đáp trả.
+
+Điều chỉnh trong `config.js`: `antiSnipeSeconds`, `antiSnipeExtend`.
 
 ---
 
-## 5. Xử lý **đồng giá** (tie-break) — phần quan trọng nhất
+## 5. Vì sao không cần tie-break?
 
-Khi 2 nữ cùng bid bằng nhau cho cùng 1 nam, cần thứ tự ưu tiên **xác định trước**,
-minh bạch, không thiên vị:
+Trong đấu giá **công khai**, mỗi người buộc phải trả **cao hơn** người đang dẫn
+⇒ giá luôn khác nhau ⇒ người cao nhất luôn thắng, không bao giờ đồng giá.
 
-Thứ tự ưu tiên (áp dụng tuần tự):
+Tuy vậy engine vẫn giữ **lưới an toàn 5 cấp** (dùng khi dữ liệu bị lệch do lỗi mạng):
 
-1. **Ưu tiên người cần hơn** — nữ chưa có nam nào thắng nữ đã có 1 nam.
-   *(đảm bảo mọi đội đủ 2 nam)*
-2. **Điểm còn lại sau khi bid thấp hơn thắng** — ai "nghèo" hơn được ưu tiên.
-   *(cân bằng ngân sách về sau)*
-3. **Tổng strength các nam đã có thấp hơn thắng** — đội yếu hơn về chuyên môn được ưu tiên.
-4. **Bốc thăm ngẫu nhiên (seeded)** — dùng seed cố định + mã bid để tái lập kết quả.
-   *(100% công bằng khi 3 tiêu chí trên bằng nhau)*
-
-> ⚠️ **Không** dùng "nữ nào giơ tay trước" vì phụ thuộc mạng/lag → không công bằng.
-
-Nếu **một nam bị nhiều nữ muốn nhưng giá cao nhất vượt ngân sách**: người bid cao nhất
-thắng, miễn bid ≤ điểm còn lại.
+1. **Giá cao hơn** thắng
+2. Người **chưa có nam** thắng *(đảm bảo đủ đội hình)*
+3. **Điểm còn lại sau khi trả thấp hơn** thắng
+4. **Tổng sức mạnh nam đã có thấp hơn** thắng
+5. **Bốc thăm seeded** — tái lập được
 
 ---
 
@@ -181,17 +189,20 @@ Nếu std dev > ngưỡng (vd 4.0) → host có thể chạy lại vòng bổ su
 
 ## 8. Toàn bộ bảng quy tắc (checklist)
 
+- [x] **Đấu giá CÔNG KHAI**: ai cũng thấy giá cao nhất + ai đang dẫn
+- [x] Người sau phải trả **cao hơn** người đang dẫn (≥ +5 điểm)
+- [x] **Chống bắn tỉa**: bid trong 15s cuối → tự động gia hạn 15s
 - [x] Ngân sách cá nhân hoá theo strength nữ
 - [x] Giá sàn theo rank nam + bước giá 5
 - [x] **Luật giữ tiền dự phòng** (chống đốt hết tiền)
-- [x] Bid kín theo vòng, có countdown
 - [x] Bắt buộc mua (must-buy) khi chưa có nam
 - [x] 2 vòng cố định + vòng bổ sung tự động
-- [x] Tie-break 4 cấp, cấp cuối là bốc thăm seeded
-- [x] Không cho bid vượt điểm còn lại
+- [x] Không cho trả vượt điểm còn lại
 - [x] **Vòng bổ sung bù trừ chuyên môn** → σ ≈ 1.1
+- [x] **Host là trọng tài**: xác nhận bid qua hàng đợi `pending` (chống gian lận)
 - [x] Báo cáo cân bằng + điểm dư
 - [x] Toàn bộ kết quả **tái lập được** (seeded)
+- [x] **Presence**: host thấy ai đang online, tự xoá khi rời trang
 
 ---
 

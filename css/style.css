@@ -367,6 +367,23 @@ input[type="number"] { text-align: center; font-size: 1.4rem; font-weight: 700; 
   .female-picker { grid-template-columns: repeat(3, 1fr); }
 }
 
+/* Bảng bid công khai (live) */
+.live-board { display: grid; gap: 8px; }
+.live-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255,209,102,0.2), rgba(255,176,32,0.12));
+  border: 1px solid rgba(255,209,102,0.4);
+}
+.live-head span { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.live-head b { font-size: 1.5rem; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+.live-leader { text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--accent); }
+
+.bid-row .tag {
+  font-size: 0.6rem; font-weight: 600; padding: 1px 5px; border-radius: 999px;
+  background: rgba(108,140,255,0.3); color: #cdd9ff; text-transform: uppercase; margin-left: 4px;
+}
+
 /* Nút icon trên topbar (reset) */
 .icon-btn {
   width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; cursor: pointer;

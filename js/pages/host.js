@@ -8,19 +8,22 @@ import { SETTINGS, FEMALES, MALES, computeMinPrice } from '../config.js';
 import {
   createInitialState, startRound, advanceRound, resolveAuction,
   fillRemaining, balanceReport, remaining, needed, nextMaleForAuction, isFinished,
+  applyBid, bidBoard,
 } from '../auction.js';
 import { openRoom, remoteToState } from '../store.js';
-import { qs, esc, toast, fmt, avatarHTML, startCountdown, bindStatus } from '../ui.js';
+import { qs, readRoleParam, esc, toast, fmt, avatarHTML, startCountdown, bindStatus } from '../ui.js';
 
-const ROOM = qs('room', 'main');
+const ROOM = readRoleParam('room', 'main');
 
 
 /* ---------- STATE ---------- */
 let S = createInitialState(FEMALES);
 let remoteBids = {};
+let remotePending = {};
 let stopCountdown = null;
 let revealing = false;
 let booted = false;   // đã khôi phục state từ Firebase lần đầu
+let processing = false;
 
 /* Nhãn trạng thái — khai báo SỚM để tránh lỗi TDZ khi callback realtime bắn về */
 const phaseText = { lobby: 'Sảnh chờ', bidding: 'Đang đấu giá', reveal: 'Công bố', done: 'Hoàn tất' };
@@ -30,6 +33,7 @@ const room = openRoom(ROOM);
 await room.connect();
 room.onState(async remote => {
   remoteBids = (remote && remote.bids) || {};
+  remotePending = (remote && remote.pending) || {};
 
   // Lần đầu: khôi phục state từ Firebase (nguồn chân lý) để F5 không mất dữ liệu
   if (!booted) {
@@ -46,6 +50,7 @@ room.onState(async remote => {
     return;
   }
 
+  processPendingBids();   // trọng tài xác nhận các bid vừa gửi
   renderControls();
 });
 
@@ -98,6 +103,58 @@ async function actionExtend() {
   renderControls();
   startTimer();
   toast('Gia hạn thêm 30 giây', 'ok');
+}
+
+/**
+ * TRỌNG TÀI XÁC NHẬN BID
+ * Người chơi gửi ý định vào /pending. Host đọc, kiểm tra hợp lệ rồi
+ * ghi vào /bids để mọi người cùng thấy. Nhờ vậy:
+ *  - Không ai tự ý sửa giá trực tiếp (chống gian lận)
+ *  - Xử lý tuần tự -> không tranh chấp khi nhiều người trả cùng lúc
+ *  - Giá luôn tăng đúng bước giá so với người đang dẫn
+ */
+async function processPendingBids() {
+  if (processing || S.phase !== 'bidding' || !S.currentMaleId) return;
+  processing = true;
+  try {
+    // Sắp xếp theo thời điểm gửi để xử lý công bằng
+    const queue = Object.entries(remotePending)
+      .map(([femaleId, v]) => ({ femaleId, amount: Number(v && v.amount), ts: (v && v.ts) || 0 }))
+      .filter(e => Number.isFinite(e.amount))
+      .sort((a, b) => a.ts - b.ts);
+
+    if (!queue.length) return;
+
+    let changed = false;
+    let extended = false;
+
+    for (const q of queue) {
+      // Bỏ qua nếu người này đã được ghi giá rồi
+      if (S.bids[q.femaleId] === q.amount) continue;
+
+      const res = applyBid(S, q.femaleId, q.amount, MALES, SETTINGS);
+      if (!res.ok) {
+        toast(`${nameOfFemale(q.femaleId)}: ${res.error}`, 'err');
+        continue;
+      }
+      S = res.state;
+      changed = true;
+      if (res.extended) extended = true;
+    }
+
+    if (changed) {
+      await room.writeBids(S.bids, S.roundEndsAt);
+      if (extended) {
+        toast('⏱ Có người trả phút chót — gia hạn thêm!', 'ok');
+        startTimer();
+      }
+      renderAuction();
+      renderLiveBoard();
+    }
+    await room.clearPending();
+  } finally {
+    processing = false;
+  }
 }
 
 async function actionReveal() {
@@ -250,10 +307,34 @@ function renderControls() {
   if (S.phase === 'bidding') {
     const bids = Object.entries(remoteBids).filter(([, v]) => Number(v) > 0);
     document.getElementById('bidCount').textContent = bids.length;
+    renderLiveBoard();
     if (!stopCountdown) startTimer();
   }
 
   if (S.phase === 'reveal') renderReveal();
+}
+
+/** Bảng bid công khai ngay trên màn host. */
+function renderLiveBoard() {
+  const box = document.getElementById('liveBoard');
+  if (!box) return;
+  const board = bidBoard(S.bids, MALES, SETTINGS);
+  if (!board.length) {
+    box.innerHTML = '<p class="muted center">Chưa ai trả giá.</p>';
+    return;
+  }
+  box.innerHTML = `
+    <div class="live-head">
+      <span>Giá cao nhất</span>
+      <b>${fmt(board[0].amount)}</b>
+    </div>
+    <div class="live-leader">${esc(nameOfFemale(board[0].femaleId))} đang dẫn đầu</div>
+    <div class="bid-list">${board.map((e, i) => `
+      <div class="bid-row ${i === 0 ? 'win' : ''}">
+        <span class="pos">${e.place}</span>
+        <span>${esc(nameOfFemale(e.femaleId))}</span>
+        <span class="amount">${fmt(e.amount)}</span>
+      </div>`).join('')}</div>`;
 }
 
 function renderReveal() {

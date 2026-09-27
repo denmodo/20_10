@@ -73,18 +73,19 @@ export function nextMaleForAuction(state, males = MALES) {
 }
 
 /* =============================================================
- * 3. VALIDATE BID
+ * 3. LUẬT ĐẤU GIÁ CÔNG KHAI (LIVE BIDDING)
  * -------------------------------------------------------------
- * Trả về { ok: boolean, error?: string }
+ * Mọi người ĐỀU THẤY giá cao nhất hiện tại và ai đang dẫn.
+ * Ai muốn thắng phải trả CAO HƠN giá đang dẫn ít nhất minIncrement.
  *
- * LUẬT GIỮ TIỀN DỰ PHÒNG:
- * Mỗi nữ phải mua đủ malesPerTeam nam. Vì vậy bid tối đa bị giới
- * hạn để luôn còn đủ tiền trả giá sàn rẻ nhất cho các nam còn lại:
+ * Quy tắc:
+ *   - Giá khởi điểm = giá sàn của nam.
+ *   - Người đầu tiên trả đúng giá khởi điểm.
+ *   - Người sau phải trả ≥ giáDẫn + bướcGiá.
+ *   - Không được vượt điểm còn lại / giới hạn dự phòng.
+ *   - Đấu giá kết thúc khi hết giờ (có chống bắn tỉa).
  *
- *   maxBid = điểmCònLại − (sốNamCònThiếu − 1) × giáSànRẻNhất
- *
- * Nhờ vậy không ai "đốt hết tiền" ở lượt đầu rồi bị kẹt không mua
- * được nam thứ hai → mọi đội luôn đủ đội hình.
+ * Nếu amount = 0 -> coi như "không tham gia lượt này".
  * ============================================================= */
 
 /** Giá sàn rẻ nhất trong các nam chưa được mua (bỏ qua nam đang đấu giá). */
@@ -106,6 +107,47 @@ export function maxAllowedBid({ femaleId, maleId, state }, males = MALES, s = SE
   return Math.max(0, remaining(team) - (stillNeed - 1) * perMale);
 }
 
+/**
+ * Giá tối thiểu để được dẫn đầu (giá khởi điểm hoặc giá dẫn + bước giá).
+ * Làm tròn lên theo bước giá kể từ giá sàn.
+ */
+export function nextValidBid(maleId, bids, males = MALES, s = SETTINGS) {
+  const male = males.find(m => m.id === maleId);
+  if (!male) return 0;
+  const minP = computeMinPrice(male, males, s);
+  const top = highestBid(bids, males, s);
+  if (!top) return minP;                              // chưa ai trả -> giá khởi điểm
+
+  const step = s.minIncrement;
+  const raw = top.amount + step;
+  // neo theo giá sàn để luôn đúng lưới bước giá
+  const k = Math.ceil((raw - minP) / step);
+  return minP + k * step;
+}
+
+/** Bid cao nhất hiện tại. */
+export function highestBid(bids, males = MALES, s = SETTINGS) {
+  const entries = Object.entries(bids || {})
+    .map(([femaleId, amount]) => ({ femaleId, amount: Number(amount) }))
+    .filter(e => Number.isFinite(e.amount) && e.amount > 0);
+  if (!entries.length) return null;
+  entries.sort((a, b) => b.amount - a.amount);
+  return entries[0];
+}
+
+/** Bảng xếp hạng bid công khai (cao -> thấp), kèm cờ dẫn đầu. */
+export function bidBoard(bids, males = MALES, s = SETTINGS) {
+  const entries = Object.entries(bids || {})
+    .map(([femaleId, amount]) => ({ femaleId, amount: Number(amount) }))
+    .filter(e => Number.isFinite(e.amount) && e.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+  return entries.map((e, i) => ({ ...e, leading: i === 0, place: i + 1 }));
+}
+
+/**
+ * Kiểm tra 1 lượt trả giá trong đấu giá CÔNG KHAI.
+ * Trả về { ok, error?, isSnipe? }
+ */
 export function validateBid({ femaleId, maleId, amount, state }, males = MALES, s = SETTINGS) {
   const team = state.teams[femaleId];
   if (!team) return { ok: false, error: 'Không tìm thấy đội.' };
@@ -115,12 +157,12 @@ export function validateBid({ femaleId, maleId, amount, state }, males = MALES, 
 
   const left = remaining(team);
   const minP = computeMinPrice(male, males, s);
+  const top = highestBid(state.bids, males, s);
 
   if (!Number.isFinite(amount) || amount < 0) return { ok: false, error: 'Số điểm không hợp lệ.' };
-  if (amount > left) return { ok: false, error: `Chỉ còn ${left} điểm, không thể bid ${amount}.` };
+  if (amount === 0) return { ok: true };               // bỏ qua lượt này
 
-  const mustBuy = needed(team, s.malesPerTeam) >= s.malesPerTeam; // chưa có nam nào
-  if (amount === 0 && mustBuy) return { ok: false, error: 'Bạn chưa có nam nào — bắt buộc phải bid (>0).' };
+  if (amount > left) return { ok: false, error: `Chỉ còn ${left} điểm, không thể trả ${amount}.` };
 
   // Giới hạn dự phòng — nếu vô tình < giá sàn thì nới lỏng để tránh kẹt
   const hardMax = maxAllowedBid({ femaleId, maleId, state }, males, s);
@@ -133,11 +175,28 @@ export function validateBid({ femaleId, maleId, amount, state }, males = MALES, 
     };
   }
 
-  if (amount > 0 && amount < minP) return { ok: false, error: `Bid phải ≥ giá sàn ${minP}.` };
-  if (amount > 0 && (amount - minP) % s.minIncrement !== 0 && amount !== minP) {
-    return { ok: false, error: `Bước giá là ${s.minIncrement} (giá sàn ${minP}, ${minP + s.minIncrement}, ...).` };
+  if (amount < minP) return { ok: false, error: `Giá thấp nhất là ${minP} (giá sàn).` };
+
+  // Bước giá neo theo giá sàn
+  if ((amount - minP) % s.minIncrement !== 0) {
+    return { ok: false, error: `Giá phải theo bước ${s.minIncrement} (${minP}, ${minP + s.minIncrement}, ...).` };
   }
-  return { ok: true };
+
+  // Công khai: phải CAO HƠN người đang dẫn
+  if (top) {
+    if (top.femaleId === femaleId) {
+      return { ok: false, error: 'Bạn đang dẫn đầu rồi — không cần trả thêm.' };
+    }
+    if (amount <= top.amount) {
+      return { ok: false, error: `Phải cao hơn giá đang dẫn ${top.amount} điểm.` };
+    }
+  }
+
+  // Chống bắn tỉa: bid trong X giây cuối -> gia hạn thêm
+  const leftMs = (state.roundEndsAt || 0) - Date.now();
+  const isSnipe = state.roundEndsAt && leftMs > 0 && leftMs <= s.antiSnipeSeconds * 1000;
+
+  return { ok: true, isSnipe };
 }
 
 /* =============================================================
@@ -201,10 +260,42 @@ export function sumMaleScore(team, males = MALES) {
 }
 
 /* =============================================================
+ * 4. ÁP DỤNG 1 LƯỢT TRẢ GIÁ CÔNG KHAI (host gọi)
+ * -------------------------------------------------------------
+ * Trả về state MỚI + thông tin để UI cập nhật tức thì.
+ * Tự động gia hạn nếu bị "bắn tỉa" ở giây cuối.
+ * ============================================================= */
+export function applyBid(state, femaleId, amount, males = MALES, s = SETTINGS) {
+  const maleId = state.currentMaleId;
+  if (!maleId) return { state, ok: false, error: 'Chưa có nam nào đang đấu giá.' };
+
+  const check = validateBid({ femaleId, maleId, amount, state }, males, s);
+  if (!check.ok) return { state, ok: false, error: check.error };
+
+  const next = structuredClone(state);
+  if (amount === 0) {
+    delete next.bids[femaleId];              // bỏ qua lượt này
+    return { state: next, ok: true, skipped: true };
+  }
+
+  next.bids = { ...next.bids, [femaleId]: amount };
+
+  // Chống bắn tỉa: gia hạn thêm thời gian
+  let extended = false;
+  if (check.isSnipe) {
+    next.roundEndsAt = (next.roundEndsAt || Date.now()) + s.antiSnipeExtend * 1000;
+    extended = true;
+  }
+
+  return { state: next, ok: true, extended, isSnipe: check.isSnipe };
+}
+
+/* =============================================================
  * 5. CHỐT 1 LƯỢT ĐẤU GIÁ
  * -------------------------------------------------------------
- * Trả về state MỚI (immutable) + thông tin reveal.
- * Nếu không ai bid (hoặc bid = 0) -> nam vào vòng bổ sung sau.
+ * Trong đấu giá CÔNG KHAI, giá luôn khác nhau (mỗi người phải
+ * trả cao hơn người trước) -> người trả cao nhất thắng.
+ * Tie-break chỉ còn là lưới an toàn nếu dữ liệu bị lệch.
  * ============================================================= */
 export function resolveAuction(state, males = MALES, s = SETTINGS) {
   const maleId = state.currentMaleId;

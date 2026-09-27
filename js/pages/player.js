@@ -6,13 +6,13 @@
  * ============================================================= */
 import { SETTINGS, FEMALES, MALES, computeMinPrice } from '../config.js';
 import {
-  createInitialState, validateBid, remaining, needed, maxAllowedBid,
+  createInitialState, remaining, needed, maxAllowedBid, bidBoard, nextValidBid, highestBid,
 } from '../auction.js';
 import { openRoom, remoteToState } from '../store.js';
-import { qs, esc, toast, fmt, avatarHTML, startCountdown, haptic, bindStatus } from '../ui.js';
+import { qs, readRoleParam, esc, toast, fmt, avatarHTML, startCountdown, haptic, bindStatus } from '../ui.js';
 
-const ROOM = qs('room', 'main');
-const MY_ID = qs('f', 'F1');
+const ROOM = readRoleParam('room', 'main');
+const MY_ID = readRoleParam('f', 'F1');
 const ME = FEMALES.find(f => f.id === MY_ID);
 
 if (!ME) {
@@ -53,7 +53,9 @@ function mergeState(remote) {
 }
 
 /* =============================================================
- * ĐẶT GIÁ
+ * ĐẶT GIÁ — ĐẤU GIÁ CÔNG KHAI
+ * Người chơi gửi "ý định trả giá" lên Firebase; host là trọng tài
+ * xác nhận và cập nhật giá dẫn cho mọi người cùng thấy.
  * ============================================================= */
 const bidInput = document.getElementById('bidAmount');
 
@@ -63,45 +65,57 @@ function currentMinPrice() {
 }
 function myTeam() { return S.teams[MY_ID] || { budget: 0, spent: 0, maleIds: [] }; }
 function myLeft() { return remaining(myTeam()); }
-/** Điểm tối đa được bid lượt này (đã trừ tiền dự phòng cho nam còn lại). */
+/** Điểm tối đa được trả lượt này (đã trừ tiền dự phòng cho nam còn lại). */
 function myMaxBid() {
   if (!S.currentMaleId) return myLeft();
   return maxAllowedBid({ femaleId: MY_ID, maleId: S.currentMaleId, state: S }, MALES, SETTINGS);
 }
+/** Giá tối thiểu để vượt người đang dẫn. */
+function myMinToLead() {
+  if (!S.currentMaleId) return 0;
+  return nextValidBid(S.currentMaleId, S.bids, MALES, SETTINGS);
+}
+/** Người đang dẫn đầu lượt này (nếu có). */
+function currentLeader() { return highestBid(S.bids, MALES, SETTINGS); }
+function amLeading() { const l = currentLeader(); return !!l && l.femaleId === MY_ID; }
 
 async function submitBid() {
   if (S.phase !== 'bidding' || !S.currentMaleId) return toast('Chưa tới lượt đấu giá.', 'err');
+  if (amLeading()) return toast('Bạn đang dẫn đầu rồi.', 'err');
+
   const amount = Number(bidInput.value);
-
-  const check = validateBid({ femaleId: MY_ID, maleId: S.currentMaleId, amount, state: S }, MALES, SETTINGS);
-  if (!check.ok) {
-    document.getElementById('bidError').textContent = check.error;
-    document.getElementById('bidError').classList.remove('hidden');
-    haptic(30);
-    return toast(check.error, 'err');
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return toast('Nhập số điểm muốn trả.', 'err');
   }
+  if (amount > myLeft()) return toast(`Chỉ còn ${myLeft()} điểm.`, 'err');
+
+  const minLead = myMinToLead();
+  if (amount < minLead) return toast(`Phải trả ít nhất ${fmt(minLead)} điểm.`, 'err');
+  const max = myMaxBid();
+  if (amount > max) return toast(`Tối đa ${fmt(max)} điểm (phải để dành mua nam còn lại).`, 'err');
+  if ((amount - currentMinPrice()) % SETTINGS.minIncrement !== 0) {
+    return toast(`Giá phải theo bước ${SETTINGS.minIncrement}.`, 'err');
+  }
+
   document.getElementById('bidError').classList.add('hidden');
-
-  // Lưu bid lên remote (kín với người chơi khác — chỉ host đọc khi chốt)
-  await room.setBid(MY_ID, amount);
+  await room.setBid(MY_ID, amount);      // công khai: ghi thẳng lên Firebase
   myLocalBid = amount;
-  haptic(20);
-
+  haptic(25);
   document.getElementById('bidStatus').innerHTML =
-    `<div class="ok-box">Đã khoá bid <b>${fmt(amount)}</b> điểm. Bạn có thể sửa trước khi host chốt.</div>`;
-  toast(amount === 0 ? 'Đã chọn bỏ qua lượt này.' : `Đã đặt ${fmt(amount)} điểm.`, 'ok');
+    `<div class="ok-box">Đã trả <b>${fmt(amount)}</b> điểm.</div>`;
+  toast(`Đã trả ${fmt(amount)} điểm.`, 'ok');
 }
 
 /* ---------- Quick buttons ---------- */
 document.querySelectorAll('[data-quick]').forEach(btn => {
   btn.addEventListener('click', () => {
-    const min = currentMinPrice();
-    const step = SETTINGS.minIncrement;
     const q = btn.dataset.quick;
+    const step = SETTINGS.minIncrement;
+    const minLead = myMinToLead();
     let v = Number(bidInput.value) || 0;
-    if (q === 'min') v = min;
-    else if (q === 'plus') v = Math.max(min, v + step);
-    else if (q === 'plus10') v = Math.max(min, v + 10);
+    if (q === 'min') v = minLead;
+    else if (q === 'plus') v = Math.max(minLead, v + step);
+    else if (q === 'plus10') v = Math.max(minLead, v + 10);
     else if (q === 'max') v = myMaxBid();
     else if (q === 'skip') v = 0;
     bidInput.value = v;
@@ -109,24 +123,28 @@ document.querySelectorAll('[data-quick]').forEach(btn => {
   });
 });
 bidInput.addEventListener('input', updateHint);
+bidInput.addEventListener('focus', () => { if (!Number(bidInput.value)) { bidInput.value = myMinToLead(); updateHint(); } });
 document.getElementById('btnBid').addEventListener('click', submitBid);
 
 function updateHint() {
-  const min = currentMinPrice();
   const max = myMaxBid();
+  const minLead = myMinToLead();
   const v = Number(bidInput.value) || 0;
   const hint = document.getElementById('bidHint');
-  const mustBuy = needed(myTeam(), SETTINGS.malesPerTeam) >= SETTINGS.malesPerTeam;
-  if (v === 0) {
-    hint.innerHTML = mustBuy
-      ? '<span style="color:var(--danger)">Bạn chưa có nam nào — bắt buộc phải đặt giá!</span>'
-      : 'Bỏ qua lượt này (không mất điểm).';
-  } else if (v < min) {
-    hint.innerHTML = `<span style="color:var(--danger)">Thấp hơn giá sàn ${fmt(min)}</span>`;
+  const leader = currentLeader();
+
+  if (amLeading()) {
+    hint.innerHTML = '<span style="color:var(--accent)">Bạn đang dẫn đầu — không cần trả thêm.</span>';
+    return;
+  }
+  if (v > 0 && v < minLead) {
+    hint.innerHTML = `<span style="color:var(--danger)">Phải trả ít nhất ${fmt(minLead)} điểm</span>`;
   } else if (v > max) {
-    hint.innerHTML = `<span style="color:var(--danger)">Vượt mức tối đa ${fmt(max)} — phải để dành tiền mua nam còn lại</span>`;
+    hint.innerHTML = `<span style="color:var(--danger)">Vượt tối đa ${fmt(max)} — phải để dành mua nam còn lại</span>`;
   } else {
-    hint.innerHTML = `Giá sàn ${fmt(min)} · Tối đa <b>${fmt(max)}</b> · Còn lại sau bid: ${fmt(myLeft() - v)} điểm`;
+    hint.innerHTML = leader
+      ? `Đang dẫn: <b>${fmt(leader.amount)}</b> · Cần trả ≥ <b>${fmt(minLead)}</b> · Tối đa ${fmt(max)}`
+      : `Chưa ai trả · Giá khởi điểm <b>${fmt(minLead)}</b> · Tối đa ${fmt(max)}`;
   }
 }
 
@@ -163,22 +181,23 @@ function renderBidPanel() {
       + (S.phase === 'lobby' ? 'Đang chờ host mở lượt…'
         : S.phase === 'reveal' ? 'Đã chốt lượt này.' : 'Giải đã kết thúc.') + '</p>';
   } else {
-    const min = currentMinPrice();
-    bidInput.min = String(min);
-    if (myLocalBid !== null) bidInput.value = myLocalBid;
-    else if (!Number(bidInput.value) || Number(bidInput.value) < min) bidInput.value = min;
+    bidInput.min = String(myMinToLead());
+    // Gợi ý sẵn giá tối thiểu để vượt người đang dẫn
+    if (myLocalBid === null) bidInput.value = myMinToLead();
     updateHint();
     if (!stopCountdown) startTimer();
   }
 
-  // Khối công bố kết quả
+  // Khối trạng thái bid công khai (ai đang dẫn)
   const revealBox = document.getElementById('revealBox');
-  if (S.phase === 'reveal' && S.reveal) {
+  if (S.phase === 'bidding') {
+    revealBox.classList.remove('hidden');
+    revealBox.innerHTML = renderLiveBoard();
+  } else if (S.phase === 'reveal' && S.reveal) {
     revealBox.classList.remove('hidden');
     const r = S.reveal;
     const m = MALES.find(x => x.id === r.maleId);
     const iWon = r.winnerId === MY_ID;
-    const myEntry = r.entries.find(e => e.femaleId === MY_ID);
     revealBox.innerHTML = `
       <div class="divider"></div>
       ${iWon
@@ -194,14 +213,49 @@ function renderBidPanel() {
                <div class="price">${fmt(r.price)} điểm</div>
              </div>`
           : `<div class="reveal-banner fail">
-               <div class="winner">Không ai mua ${esc(m.name)}</div>
+               <div class="winner">Không ai trả giá cho ${esc(m.name)}</div>
              </div>`}
-      ${myEntry ? `<p class="muted center mt">Bạn đã trả ${fmt(myEntry.amount)} điểm</p>` : ''}
+      ${renderBidRows(r.entries, r.winnerId)}
     `;
   } else {
     revealBox.classList.add('hidden');
     revealBox.innerHTML = '';
   }
+}
+
+/** Bảng bid trực tiếp: ai đang dẫn, mọi người thấy hết. */
+function renderLiveBoard() {
+  const board = bidBoard(S.bids, MALES, SETTINGS);
+  const mine = board.find(b => b.femaleId === MY_ID);
+
+  if (!board.length) {
+    return `<div class="divider"></div>
+      <p class="muted center">Chưa ai trả giá — mở màn với <b>${fmt(myMinToLead())}</b> điểm.</p>`;
+  }
+  return `<div class="divider"></div>
+    <div class="live-board">
+      <div class="live-head">
+        <span>Giá cao nhất</span>
+        <b>${fmt(board[0].amount)}</b>
+      </div>
+      <div class="live-leader">
+        ${esc(nameOfFemale(board[0].femaleId))}${board[0].femaleId === MY_ID ? ' (bạn)' : ''}
+        đang dẫn đầu
+      </div>
+      <div class="bid-list">${renderBidRows(board, board[0].femaleId)}</div>
+      ${mine && mine.leading
+        ? '<div class="ok-box mt center">Bạn đang dẫn đầu — giữ vững!</div>'
+        : `<div class="warn-box mt center">Cần trả ít nhất <b>${fmt(myMinToLead())}</b> điểm để vượt.</div>`}
+    </div>`;
+}
+
+function renderBidRows(entries, winnerId) {
+  return `<div class="bid-list">${(entries || []).map((e, i) => `
+    <div class="bid-row ${e.femaleId === winnerId ? 'win' : ''}">
+      <span class="pos">${e.place || i + 1}</span>
+      <span>${esc(nameOfFemale(e.femaleId))}${e.femaleId === MY_ID ? ' <span class="tag">bạn</span>' : ''}</span>
+      <span class="amount">${fmt(e.amount)}</span>
+    </div>`).join('')}</div>`;
 }
 
 function renderAuction() {
@@ -276,3 +330,7 @@ room.onState(remote => {
   renderAll();
   if (S.phase === 'bidding' && S.roundEndsAt) startTimer();
 });
+
+/* Rời phòng -> host thấy offline ngay */
+window.addEventListener('pagehide', () => room.clearPresence());
+window.addEventListener('beforeunload', () => room.clearPresence());
