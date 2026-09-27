@@ -155,6 +155,15 @@ class MockStore {
     this._write(d);
   }
 
+  /** Xoá sạch phòng (bids, meta, teams) nhưng giữ presence hiện tại. */
+  async resetRoom(teams) {
+    const d = this._ensure();
+    d.meta = { phase: 'lobby', round: 1, createdAt: Date.now() };
+    d.bids = {};
+    d.teams = teams ? teamsToRemote(teams) : {};
+    this._write(d);
+  }
+
   async initTeams(teams) {
     const d = this._ensure();
     if (!d.teams || Object.keys(d.teams).length === 0) {
@@ -321,6 +330,14 @@ class FirebaseStore {
   async updateMeta(patch) { return this.fns.update(this.root, { meta: { ...(this._latest?.meta || {}), ...patch } }); }
   async setBid(femaleId, amount) { return this.fns.set(this.fns.ref(this.db, `rooms/${this.code}/bids/${femaleId}`), amount); }
   async clearBids() { return this.fns.set(this.fns.ref(this.db, `rooms/${this.code}/bids`), null); }
+  /** Xoá sạch phòng (bids, meta, teams) trên Firebase — GIỮ presence. */
+  async resetRoom(teams) {
+    return this.fns.update(this.fns.ref(this.db, `rooms/${this.code}`), {
+      meta: { phase: 'lobby', round: 1, createdAt: Date.now(), hostOnline: true },
+      bids: null,
+      teams: teams ? teamsToRemote(teams) : null,
+    });
+  }
   async writeTeams(teams) { return this.fns.set(this.fns.ref(this.db, `rooms/${this.code}/teams`), teamsToRemote(teams)); }
   async initTeams(teams) {
     if (this._latest && this._latest.teams && Object.keys(this._latest.teams).length) return;

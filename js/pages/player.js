@@ -33,6 +33,7 @@ let myLocalBid = null;                 // bid đã gửi ở lượt hiện tạ
 let stopCountdown = null;
 let lastPhase = 'lobby';
 let lastMaleId = null;
+let lastRound = 1;
 
 /* Nhãn trạng thái — khai báo SỚM để tránh lỗi TDZ khi callback realtime bắn về */
 const phaseText = { lobby: 'Sảnh chờ', bidding: 'Đang đấu giá', reveal: 'Công bố', done: 'Hoàn tất' };
@@ -261,9 +262,17 @@ renderAll();
 /* Đăng ký realtime SAU khi mọi hàm/biến đã khởi tạo — tránh lỗi TDZ */
 room.onState(remote => {
   S = mergeState(remote);
-  const changedRound = S.currentMaleId !== lastMaleId || S.phase !== lastPhase;
-  if (changedRound) { myLocalBid = null; }
-  lastPhase = S.phase; lastMaleId = S.currentMaleId;
+  // Lượt mới (đổi nam, đổi phase, hoặc đổi vòng) -> xoá bid cũ của mình
+  const changedRound = S.currentMaleId !== lastMaleId
+    || S.phase !== lastPhase
+    || S.round !== lastRound;
+  if (changedRound) {
+    myLocalBid = null;
+    bidInput.value = '';
+    const st = document.getElementById('bidStatus'); if (st) st.innerHTML = '';
+    document.getElementById('bidError').classList.add('hidden');
+  }
+  lastPhase = S.phase; lastMaleId = S.currentMaleId; lastRound = S.round;
   renderAll();
   if (S.phase === 'bidding' && S.roundEndsAt) startTimer();
 });

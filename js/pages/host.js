@@ -144,13 +144,62 @@ async function actionFill() {
   toast('Đã chạy vòng bổ sung.', 'ok');
 }
 
+/**
+ * Reset TOÀN BỘ: xoá sạch phòng trên backend, đưa về sảnh chờ,
+ * tạo lại đội hình với ngân sách ban đầu. Xác nhận bằng hộp thoại đẹp.
+ */
 async function actionReset() {
-  if (!confirm('Xoá toàn bộ kết quả và chơi lại từ đầu?')) return;
+  const ok = await confirmDialog({
+    title: 'Reset toàn bộ?',
+    message: 'Toàn bộ kết quả đấu giá, đội hình và bid sẽ bị xoá sạch trên mọi thiết bị. '
+      + 'Không thể hoàn tác.',
+    confirmText: 'Xoá hết',
+  });
+  if (!ok) return;
+
+  // Xoay icon cho phản hồi trực quan
+  const icon = document.getElementById('btnResetTop');
+  icon && icon.classList.add('spin');
+
+  stopCountdown && stopCountdown();
+  stopCountdown = null;
+  revealing = false;
+
   S = createInitialState(FEMALES);
-  await room.clearBids();
+  await room.resetRoom(S.teams);     // xoá sạch + tạo lại đội hình trên backend
   await pushAll();
+
   renderAll();
-  toast('Đã reset phòng.', 'ok');
+  startTimer();
+  toast('Đã reset toàn bộ phòng.', 'ok');
+  setTimeout(() => icon && icon.classList.remove('spin'), 800);
+}
+
+/** Hộp thoại xác nhận dạng promise (thay cho confirm() của trình duyệt). */
+function confirmDialog({ title, message, confirmText = 'Đồng ý', cancelText = 'Huỷ' }) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'confirm-overlay';
+    ov.innerHTML = `
+      <div class="confirm-box">
+        <h3>${esc(title)}</h3>
+        <p>${esc(message)}</p>
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-act="cancel">${esc(cancelText)}</button>
+          <button class="btn btn-danger" data-act="ok">${esc(confirmText)}</button>
+        </div>
+      </div>`;
+    const done = v => { ov.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+    const onKey = e => { if (e.key === 'Escape') done(false); };
+    ov.addEventListener('click', e => {
+      const act = e.target.closest('[data-act]');
+      if (act) return done(act.dataset.act === 'ok');
+      if (e.target === ov) done(false);           // bấm nền để huỷ
+    });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(ov);
+    ov.querySelector('[data-act="ok"]').focus();
+  });
 }
 
 function finish() {
@@ -327,6 +376,7 @@ document.getElementById('btnNext').addEventListener('click', actionNext);
 document.getElementById('btnSkipToFill').addEventListener('click', actionFill);
 document.getElementById('btnFill2').addEventListener('click', actionFill);
 document.getElementById('btnReset').addEventListener('click', actionReset);
+document.getElementById('btnResetTop').addEventListener('click', actionReset);
 
 window.addEventListener('beforeunload', () => room.setHostOnline(false));
 

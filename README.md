@@ -12,7 +12,7 @@ Chỉ dùng **HTML + CSS + JavaScript thuần** (ES modules) và **Firebase Real
 
 | | |
 |---|---|
-| 🎤 **Host** | Bảng điều khiển: mở/chốt từng lượt, đếm ngược, gia hạn, chốt sớm, vòng bổ sung, báo cáo cân bằng |
+| 🎤 **Host** | Bảng điều khiển: mở/chốt từng lượt, đếm ngược, gia hạn, chốt sớm, vòng bổ sung, báo cáo cân bằng, **nút reset toàn bộ (↺)** |
 | 🙋 **Người chơi** | Đăng nhập bằng mật khẩu riêng, đặt giá kín, xem đội của mình và đối thủ |
 | 👀 **Xem** | Bảng trực tiếp — giữ kín bid đang mở, chỉ hiện kết quả khi chốt |
 | 📱 **Mobile-first** | Bố cục 1 cột, nút to, chữ gọn — dùng tốt trên điện thoại |
@@ -51,6 +51,12 @@ python -m http.server 5173
 
 > 💡 Mã phòng cố định là `main` — không cần nhập, phù hợp buổi chơi dùng 1 lần.
 > Chạy test tự động: `npm test`
+
+### 🔄 Reset toàn bộ
+
+Bấm nút **↺** ở góc trên phải trang Host (hoặc **Chơi lại từ đầu** khi giải kết thúc).
+Xác nhận trong hộp thoại → toàn bộ bid, đội hình, lịch sử bị xoá sạch **trên mọi thiết bị**,
+đưa phòng về sảnh chờ và tạo lại ngân sách ban đầu. Dùng khi muốn chơi lại từ đầu.
 
 ---
 
