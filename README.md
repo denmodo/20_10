@@ -125,13 +125,17 @@ Chi tiết đầy đủ + phân tích công bằng: [`docs/LUAT-DAU-GIA.md`](doc
 
 ### Ngân sách
 
-Mỗi nữ có ngân sách **tỉ lệ nghịch với sức mạnh** — nữ mạnh nhận ít điểm hơn:
+Mỗi nữ có ngân sách **tỉ lệ thuận với sức mạnh** — nữ giỏi nhận nhiều điểm hơn
+để mua được nam mạnh hơn (nhờ vậy tổng sức mạnh 6 đội mới cân bằng):
 
 ```
-budget(nữ) = round( TOTAL / n × (1 + k × (MID − strength) / SPREAD) )
+budget(nữ) = totalPoints / n × (1 + k × (strength − MID) / SPREAD)
 ```
 
-Ví dụ 600 điểm / 6 nữ: mạnh nhất **83**, yếu nhất **118**.
+Ví dụ 600 điểm, 6 nữ strength `[2,5,4,4,4,3]`: yếu nhất **81**, mạnh nhất **116**.
+
+> 💡 `k = 0` (hoặc `budgetMode: 'equal'`) để chia đều — nhưng khi đó đội của nữ giỏi
+> sẽ yếu hơn vì không đủ tiền mua nam mạnh.
 
 ### Giá sàn & bước giá
 

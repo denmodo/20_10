@@ -27,15 +27,24 @@ export function runTests() {
   };
 
   /* ---------- Nhóm 1: NGÂN SÁCH ---------- */
-  test('Ngân sách: nữ mạnh nhất nhận ít điểm nhất', () => {
+  test('Ngân sách: nữ mạnh hơn nhận nhiều điểm hơn', () => {
     const t = budgetTable(FEMALES, SETTINGS);
     const strongest = t.reduce((a, b) => (b.strength > a.strength ? b : a));
     const weakest = t.reduce((a, b) => (b.strength < a.strength ? b : a));
-    ok(strongest.budget <= weakest.budget,
-      `${strongest.name} (strength ${strongest.strength}) phải ≤ ${weakest.name} (${weakest.strength})`);
-    if (strongest.strength > weakest.strength) {
-      ok(strongest.budget < weakest.budget, 'nữ mạnh hơn phải ít điểm hơn');
+    if (strongest.strength > weakest.strength && SETTINGS.budgetMode !== 'equal') {
+      ok(strongest.budget > weakest.budget,
+        `${strongest.name} (${strongest.strength}) phải nhiều điểm hơn ${weakest.name} (${weakest.strength})`);
     }
+  });
+
+  test('Ngân sách: điểm tỉ lệ thuận giúp đội cân bằng', () => {
+    const t = budgetTable(FEMALES, SETTINGS);
+    const prices = priceTable(MALES, SETTINGS);
+    const bestMale = prices.reduce((a, b) => (b.score > a.score ? b : a));
+    const perMale = prices.reduce((a, b) => a + b.minPrice, 0) / prices.length;
+    // Nữ mạnh nhất phải đủ tiền mua nam mạnh nhất nếu để dành cả 2 slot
+    ok(t.reduce((a, b) => (b.strength > a.strength ? b : a)).budget >= bestMale.minPrice + perMale * 0.5,
+      'nữ mạnh nhất phải đủ tiền mua nam mạnh nhất');
   });
 
   test('Ngân sách: tổng xấp xỉ totalPoints (sai số ≤ n)', () => {

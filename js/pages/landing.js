@@ -36,7 +36,14 @@ picker.addEventListener('click', e => {
 });
 
 /* ---------- Điều hướng ---------- */
+/**
+ * Chuyển trang kèm tham số. Đồng thời lưu vào sessionStorage để không bị mất
+ * khi hosting redirect (một số static server bỏ query string khi rewrite .html).
+ */
 function go(page, params) {
+  try {
+    for (const [k, v] of Object.entries(params)) sessionStorage.setItem(`role:${k}`, v);
+  } catch {}
   location.href = `${page}?${new URLSearchParams(params).toString()}`;
 }
 

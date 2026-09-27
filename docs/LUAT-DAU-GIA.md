@@ -34,36 +34,44 @@ Nếu ai cũng có cùng số điểm và bid tự do, sẽ xảy ra 4 vấn đ�
 
 ## 2. Ngân sách: mỗi nữ bao nhiêu điểm?
 
-Bid càng cao = nam càng mạnh (rank nhỏ). Muốn công bằng về **tổng sức mạnh đội**,
-ngân sách phải tỉ lệ nghịch với sức mạnh của nữ.
+> ⚠️ **Nguyên tắc then chốt:** vì **mọi nữ đều mua đúng 2 nam**, nên nếu ai cũng
+> có số điểm bằng nhau thì đội của nữ giỏi sẽ **yếu hơn** (cô ấy không đủ tiền
+> mua nam mạnh). Vì vậy ngân sách phải **tỉ lệ THUẬN với sức mạnh nữ**.
 
 Công thức (dùng trong `js/config.js`):
 
 ```
-budget(nữ) = round( TOTAL / n × (1 + k × (MID - strength) / SPREAD) )
+budget(nữ) = totalPoints / n × (1 + k × (strength − MID) / SPREAD)
 ```
 
-- `TOTAL` = tổng điểm của cả giải (vd 600)
+- `totalPoints` = tổng điểm của cả giải (vd 600)
 - `strength` 1..10 (10 = nữ giỏi nhất)
-- `MID` = trung bình strength của các nữ (vd 6.5)
-- `SPREAD` = (max − min) strength (= 5)
-- `k` = độ "bù trừ" (mặc định **0.35**)
+- `MID` = trung bình strength của các nữ
+- `SPREAD` = (max − min) strength
+- `k` = độ chênh lệch (mặc định **0.35**); `k = 0` → chia đều
 
-**Nguyên tắc vàng:** chỉ nên dùng **khoảng 80–90% ngân sách** để bid.
-Engine **tự động ép** luật này bằng `minReservePerMale` (xem mục 3b) —
-người chơi không thể tiêu hết tiền ở lượt đầu.
+**Vì sao tỉ lệ thuận lại công bằng?**
 
-Ví dụ với TOTAL = 600, 6 nữ:
+Tổng sức mạnh cả giải = `Σ strength(nữ) + Σ score(nam)`.
+Chia đều cho 6 đội → mỗi đội cần đạt mục tiêu `T`.
 
-| Nữ | strength | Ngân sách | Ghi chú |
+| Nữ | strength | Cần mua nam tổng score | Nên có ngân sách |
 |---|---|---|---|
-| A | 10 | 83 | Mạnh nhất → ít điểm nhất |
-| B | 9 | 88 | |
-| C | 7 | 98 | |
-| D | 6 | 103 | |
-| E | 5 | 108 | |
-| F | 3 | 118 | Yếu nhất → nhiều điểm nhất |
-| | | **598** | |
+| Giỏi (5) | cao | thấp hơn T | nhiều hơn (mua nam mạnh) |
+| Yếu (2) | thấp | cao hơn T | ít hơn (mua nam vừa) |
+
+Nếu làm ngược lại (nữ giỏi nhận **ít** điểm) thì nữ giỏi bị ép mua nam yếu → đội yếu đi,
+trong khi nữ yếu lại dư tiền mua nam mạnh → **đội lệch nhau rõ rệt**.
+
+Ví dụ với TOTAL = 600, 6 nữ strength `[2,5,4,4,4,3]`:
+
+| Nữ | strength | Ngân sách |
+|---|---|---|
+| Hoa | 2 | 81 |
+| Ngọc | 5 | **116** |
+| Hương / Linh / Phượng | 4 | 104 |
+| Châu | 3 | 92 |
+| | | **601** |
 
 ---
 
@@ -157,21 +165,26 @@ Sau 2 vòng, còn nam chưa được mua → chạy **vòng bổ sung**:
 ```
 Lặp: chọn nữ theo thứ tự ưu tiên:
      1. Thiếu nhiều nam nhất
-     2. Tổng sức mạnh đội THẤP nhất  ← bù trừ chuyên môn
-     3. Còn nhiều điểm nhất
-     → gán nam có rank tốt nhất mà nữ đó còn đủ tiền mua (giá = giá sàn)
+     2. ÍT LỰA CHỌN NHẤT (ít nam trong tầm giá)  ← để không ai bị bỏ rơi
+     3. Xa mục tiêu tổng sức mạnh nhất          ← bù trừ chuyên môn
+     4. Còn nhiều điểm nhất
+     → gán nam đưa đội GẦN MỤC TIÊU T nhất (không vượt quá xa)
      → lặp tới khi mọi nữ đủ 2 nam
 ```
 
-**Quan trọng:** ưu tiên (2) khiến **đội yếu nhận nam mạnh hơn** → đội hình
-cân bằng hơn hẳn so với việc chỉ "lấp chỗ trống".
+**Vì sao ưu tiên (2) lại quan trọng?**
+Nếu đội nhiều tiền được phục vụ trước, họ sẽ lấy hết nam rẻ → đội vừa trả giá cao
+(chỉ còn vài điểm) **không mua được ai** → đội hình thiếu người.
 
-Kết quả đo được (6 đội, 12 nam):
+**Fallback:** nếu một đội còn quá ít điểm tới mức không mua nổi nam rẻ nhất,
+engine tự "giảm giá" cho nam đó (trả bằng số điểm đang có) để **mọi đội luôn đủ 2 nam**.
 
-| Thuật toán | Độ lệch σ |
-|---|---|
-| Chỉ lấp chỗ trống | 5.76 ❌ |
-| Có bù trừ chuyên môn | **1.11** ✅ |
+Kết quả đo được (4 kịch bản bid khác nhau):
+
+| Thuật toán | σ | Hoàn tất đội hình |
+|---|---|---|
+| Chỉ lấp chỗ trống | 5.76 ❌ | ❌ thiếu người |
+| Bù trừ + ưu tiên ít lựa chọn | **1.41 – 1.73** ✅ | ✅ 6/6 |
 
 ---
 

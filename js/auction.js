@@ -342,37 +342,81 @@ export function resolveAuction(state, males = MALES, s = SETTINGS) {
  * Sau các vòng chính, gán nam chưa ai mua cho đội thiếu.
  * Thứ tự ưu tiên (để CÂN BẰNG, không chỉ lấp đầy):
  *   1. Đội thiếu nhiều nam nhất
- *   2. Đội có TỔNG SỨC MẠNH thấp nhất (đội yếu nhận nam mạnh hơn)
+ *   2. Đội còn XA mục tiêu tổng sức mạnh nhất (yếu nhất được bù)
  *   3. Đội còn nhiều điểm nhất (ít bị ràng buộc ngân sách)
+ *
+ * Điểm quan trọng: đội yếu nhận nam MẠNH nhất mà ngân sách cho phép,
+ * nhưng KHÔNG vượt mục tiêu quá xa -> tránh "vượt mặt" đội khác.
  * ============================================================= */
+
+/** Mục tiêu tổng sức mạnh mỗi đội = (Σ strength nữ + Σ score nam) / số đội. */
+export function targetStrength(state, females = FEMALES, males = MALES, s = SETTINGS) {
+  const teams = Object.values(state.teams);
+  if (!teams.length) return 0;
+  const fScore = teams.reduce((sum, t) => {
+    const f = females.find(x => x.id === t.femaleId);
+    return sum + (f ? f.strength : 0);
+  }, 0);
+  const mScore = males.reduce((sum, m) => sum + maleScore(m, males), 0);
+  return (fScore + mScore) / teams.length;
+}
 export function fillRemaining(state, males = MALES, s = SETTINGS, females = FEMALES) {
   const next = structuredClone(state);
+  // Mục tiêu tổng sức mạnh mỗi đội (dùng để bù trừ thông minh)
+  const target = targetStrength(next, females, males, s);
   let guard = 0;
 
   while (guard++ < 100) {
-    // Tìm nữ còn thiếu nam, ưu tiên đội YẾU (bù trừ chuyên môn)
+    // Ưu tiên đội ÍT LỰA CHỌN NHẤT để không ai bị bỏ rơi:
+    //   đội chỉ còn vừa đủ tiền mua 1 nam rẻ nhất phải được phục vụ TRƯỚC
+    //   đội nhiều tiền (nhiều lựa chọn) -> nhường nam rẻ lại
     const needy = Object.values(next.teams)
       .filter(t => needed(t, s.malesPerTeam) > 0)
+      .map(t => ({
+        team: t,
+        need: needed(t, s.malesPerTeam),
+        options: affordableMales(next, t, males, s).length,
+        gap: target - teamStrength(t, females, males),
+        left: remaining(t),
+      }))
       .sort((a, b) => {
-        const na = needed(a, s.malesPerTeam), nb = needed(b, s.malesPerTeam);
-        if (na !== nb) return nb - na;                         // thiếu nhiều hơn trước
-        const sa = teamStrength(a, females, males), sb = teamStrength(b, females, males);
-        if (sa !== sb) return sa - sb;                         // đội yếu được ưu tiên
-        return remaining(b) - remaining(a);                    // nhiều điểm hơn trước
+        if (a.need !== b.need) return b.need - a.need;         // thiếu nhiều hơn trước
+        if (a.options !== b.options) return a.options - b.options; // ít lựa chọn hơn trước
+        if (a.gap !== b.gap) return b.gap - a.gap;             // xa mục tiêu hơn trước
+        return b.left - a.left;                                // nhiều điểm hơn trước
       });
 
     if (needy.length === 0) break;
 
     let assigned = false;
-    for (const team of needy) {
-      const affordable = males
-        .filter(m => !next.boughtMaleIds.includes(m.id))
-        .filter(m => computeMinPrice(m, males, s) <= remaining(team))
-        .sort((a, b) => a.rank - b.rank);
-      if (affordable.length === 0) continue;
+    for (const { team } of needy) {
+      const current = teamStrength(team, females, males);
+      const budget = remaining(team);
 
-      const male = affordable[0];
-      const price = computeMinPrice(male, males, s);
+      let affordable = affordableMales(next, team, males, s);
+      let price;
+
+      if (affordable.length === 0) {
+        // Không còn nam nào trong tầm giá -> lấy nam rẻ nhất còn lại,
+        // trả bằng số điểm đang có (coi như "giảm giá" để mọi đội đủ người).
+        const cheapest = males
+          .filter(m => !next.boughtMaleIds.includes(m.id))
+          .sort((a, b) => computeMinPrice(a, males, s) - computeMinPrice(b, males, s))[0];
+        if (!cheapest) continue;
+        affordable = [cheapest];
+        price = Math.min(budget, computeMinPrice(cheapest, males, s));
+      }
+
+      // Chọn nam đưa đội GẦN MỤC TIÊU NHẤT (không vượt quá xa),
+      // ưu tiên nam mạnh hơn khi hoà
+      const male = affordable.sort((a, b) => {
+        const da = Math.abs(current + maleScore(a, males) - target);
+        const db = Math.abs(current + maleScore(b, males) - target);
+        if (da !== db) return da - db;
+        return a.rank - b.rank;
+      })[0];
+
+      if (price === undefined) price = computeMinPrice(male, males, s);
       next.teams[team.femaleId].spent += price;
       next.teams[team.femaleId].maleIds.push(male.id);
       next.boughtMaleIds.push(male.id);
@@ -385,6 +429,14 @@ export function fillRemaining(state, males = MALES, s = SETTINGS, females = FEMA
     if (!assigned) break;
   }
   return next;
+}
+
+/** Danh sách nam đội còn đủ tiền mua (dùng để đo "độ linh hoạt"). */
+function affordableMales(state, team, males = MALES, s = SETTINGS) {
+  const budget = remaining(team);
+  return males
+    .filter(m => !state.boughtMaleIds.includes(m.id))
+    .filter(m => computeMinPrice(m, males, s) <= budget);
 }
 
 /* =============================================================

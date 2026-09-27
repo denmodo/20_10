@@ -8,15 +8,21 @@
 /* ---------- 1. THAM SỐ GIẢI ĐẤU ---------- */
 export const SETTINGS = {
   eventName: 'Giải Cầu Lông Vui Vẻ 2026',
-  hostSecret: 'host2026',        // mật khẩu đăng nhập phòng host
-  roomSecret: 'room2026',        // mật khẩu chung (tuỳ chọn) — để trống nếu không dùng
+  hostSecret: '3579',        // mật khẩu đăng nhập phòng host
+  roomSecret: '3579',        // mật khẩu chung (tuỳ chọn) — để trống nếu không dùng
 
   teamsCount: 6,                 // số đội = số nữ
   malesPerTeam: 2,               // số nam mỗi đội
   rounds: 2,                     // số vòng đấu giá chính (= malesPerTeam)
 
   totalPoints: 600,              // tổng điểm phát cho tất cả nữ
-  budgetStrengthFactor: 0.35,    // k = độ bù trừ theo sức mạnh nữ (xem docs)
+
+  // ---- CÁCH CHIA NGÂN SÁCH ----
+  // 'strength' (mặc định): điểm tỉ lệ THUẬN với sức mạnh — nữ giỏi mua được
+  //   nam mạnh hơn, nên đội vẫn cân bằng dù ai cũng có 2 nam.
+  // 'equal': chia đều mỗi nữ totalPoints / số nữ.
+  budgetMode: 'strength',
+  budgetStrengthFactor: 0.35,    // k = độ chênh lệch (0 = chia đều hoàn toàn)
 
   basePrice: 40,                 // giá sàn của nam mạnh nhất (rank 1)
   minIncrement: 5,               // bước giá tối thiểu
@@ -75,15 +81,26 @@ export const MALES = [
  * 4. HÀM TÍNH TOÁN (không sửa trừ khi đổi công thức luật)
  * ============================================================= */
 
-/** Ngân sách của 1 nữ, tỉ lệ nghịch với strength (nữ mạnh -> ít điểm). */
+/**
+ * Ngân sách của 1 nữ.
+ *
+ * Mặc định: điểm tỉ lệ THUẬN với strength — nữ giỏi nhận nhiều điểm hơn,
+ * để có thể mua nam mạnh hơn. Vì mọi nữ đều mua đúng `malesPerTeam` nam,
+ * nên đây là cách duy nhất để đội hình cân bằng về tổng sức mạnh.
+ *
+ *   budget = totalPoints/n × (1 + k × (strength − MID) / SPREAD)
+ *
+ * Đặt k = 0 (hoặc budgetMode = 'equal') để chia đều.
+ */
 export function computeBudget(female, females = FEMALES, s = SETTINGS) {
   const n = females.length;
+  if (s.budgetMode === 'equal' || !s.budgetStrengthFactor) {
+    return Math.round(s.totalPoints / n);
+  }
   const strengths = females.map(f => f.strength);
   const mid = strengths.reduce((a, b) => a + b, 0) / n;
-  const max = Math.max(...strengths);
-  const min = Math.min(...strengths);
-  const spread = Math.max(1, max - min);
-  const raw = (s.totalPoints / n) * (1 + s.budgetStrengthFactor * (mid - female.strength) / spread);
+  const spread = Math.max(1, Math.max(...strengths) - Math.min(...strengths));
+  const raw = (s.totalPoints / n) * (1 + s.budgetStrengthFactor * (female.strength - mid) / spread);
   return Math.round(raw);
 }
 
