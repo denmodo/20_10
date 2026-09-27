@@ -13,8 +13,9 @@ Chỉ dùng **HTML + CSS + JavaScript thuần** (ES modules) và **Firebase Real
 | | |
 |---|---|
 | 🎤 **Host** | Bảng điều khiển: mở/chốt từng lượt, đếm ngược, gia hạn, chốt sớm, vòng bổ sung, báo cáo cân bằng |
-| 🙋 **Người chơi** | Đăng nhập bằng mật khẩu riêng, đặt giá kín, xem ngân sách, đồng đội, đối thủ |
-| 👀 **Khán giả** | Bảng trực tiếp cho máy chiếu — giữ kín bid đang mở, chỉ hiện kết quả khi chốt |
+| 🙋 **Người chơi** | Đăng nhập bằng mật khẩu riêng, đặt giá kín, xem đội của mình và đối thủ |
+| 👀 **Xem** | Bảng trực tiếp — giữ kín bid đang mở, chỉ hiện kết quả khi chốt |
+| 📱 **Mobile-first** | Bố cục 1 cột, nút to, chữ gọn — dùng tốt trên điện thoại |
 | 🔒 **Bid kín** | Người chơi không thấy bid của nhau |
 | ⚖️ **Công bằng** | Ngân sách theo sức mạnh nữ, giá sàn theo rank nam, **luật giữ tiền dự phòng**, tie-break 4 cấp, kết quả tái lập được |
 | 🧪 **Test** | **38 unit test** chạy trên Node hoặc trình duyệt |
@@ -40,15 +41,15 @@ python -m http.server 5173
 
 ### Kịch bản test offline (Mock mode)
 
-1. Mở `index.html` trên **1 tab** → tab **Host** → mã phòng `demo`, mật khẩu `host2026` → **Vào phòng Host**.
-2. Mở thêm **3–6 tab** `index.html` → tab **Người chơi** → chọn nữ + mật khẩu (`nu01`…`nu06`) → vào phòng.
-3. Mở thêm 1 tab → **Khán giả** → `demo` (để chiếu).
+1. Mở `index.html` → tab **Host** → nhập mật khẩu `host2026` → **Vào phòng Host**.
+2. Mở thêm **3–6 tab** `index.html` → tab **Người chơi** → chọn nữ + mật khẩu (`1`…`6`) → vào phòng.
+3. Mở thêm 1 tab → **Xem** để theo dõi (không thể đặt giá).
 4. Trên tab Host: bấm **Bắt đầu vòng 1**.
-5. Trên các tab người chơi: nhập điểm, bấm **Xác nhận đặt giá**.
-6. Trên tab Host: xem ai đã bid → **Chốt lượt ngay** (hoặc đợi hết giờ).
+5. Trên các tab người chơi: nhập điểm, bấm **Đặt giá**.
+6. Trên tab Host: xem ai đã bid → **Chốt lượt** (hoặc đợi hết giờ).
 7. Lặp lại tới khi mọi đội đủ 2 nam.
 
-> 💡 Các tab đồng bộ realtime qua `BroadcastChannel` + `localStorage`.
+> 💡 Mã phòng cố định là `main` — không cần nhập, phù hợp buổi chơi dùng 1 lần.
 > Chạy test tự động: `npm test`
 
 ---
@@ -185,7 +186,7 @@ Nếu σ > `balanceWarnStdDev` (mặc định 4.0) → cảnh báo.
 ├── index.html              # Trang chủ chọn vai trò
 ├── host.html               # Bảng điều khiển Host
 ├── player.html             # Màn hình người chơi
-├── spectator.html          # Bảng trực tiếp khán giả
+├── spectator.html          # Bảng trực tiếp cho người xem
 │
 ├── css/
 │   └── style.css           # Toàn bộ giao diện (dark, glassmorphism)
@@ -234,7 +235,7 @@ export const SETTINGS = {
 };
 
 export const FEMALES = [
-  { id: 'F1', name: 'Ngọc Anh', strength: 10, secret: 'nu01', img: '' },
+  { id: 'F1', name: 'Hoa', strength: 2, secret: '1', img: '' },
   // ...
 ];
 

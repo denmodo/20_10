@@ -4,30 +4,28 @@
  * Chỉ ĐỌC state từ Realtime DB + ghi bid của chính mình.
  * Mọi tính toán hiển thị dùng chung engine (deterministic).
  * ============================================================= */
-import { SETTINGS, FEMALES, MALES, computeMinPrice, priceTable } from '../config.js';
+import { SETTINGS, FEMALES, MALES, computeMinPrice } from '../config.js';
 import {
-  createInitialState, validateBid, remaining, needed, rankBids, teamStrength, maxAllowedBid,
+  createInitialState, validateBid, remaining, needed, maxAllowedBid,
 } from '../auction.js';
 import { openRoom, remoteToState } from '../store.js';
-import { qs, esc, toast, fmt, avatarHTML, showModeBadge, startCountdown, haptic, bindStatus } from '../ui.js';
+import { qs, esc, toast, fmt, avatarHTML, startCountdown, haptic, bindStatus } from '../ui.js';
 
-const ROOM = qs('room', 'demo');
+const ROOM = qs('room', 'main');
 const MY_ID = qs('f', 'F1');
 const ME = FEMALES.find(f => f.id === MY_ID);
 
 if (!ME) {
-  document.body.innerHTML = '<div class="wrap"><div class="panel"><h3>❌ Không tìm thấy người chơi</h3><p class="muted">Kiểm tra tham số ?f= trên URL.</p></div></div>';
+  document.body.innerHTML = '<div class="wrap"><div class="panel"><h3>Không tìm thấy người chơi</h3><p class="muted">Kiểm tra tham số ?f= trên URL.</p></div></div>';
   throw new Error('unknown female');
 }
 
 document.getElementById('playerName').textContent = ME.name;
-document.getElementById('roomCode').textContent = ROOM;
-showModeBadge();
 
 /* ---------- KẾT NỐI ---------- */
 const room = openRoom(ROOM);
 await room.connect();
-bindStatus(room, 'hostOnline');
+bindStatus(room, 'netStatus');
 room.setPresence({ role: 'player', femaleId: MY_ID, name: ME.name });
 
 let S = createInitialState(FEMALES);   // state suy ra từ remote
@@ -147,32 +145,22 @@ function renderAll() {
   pill.textContent = phaseText[S.phase] || S.phase;
   pill.className = `pill ${S.phase}`;
 
-  renderBudget();
   renderBidPanel();
   renderAuction();
   renderMyTeam();
   renderOtherTeams();
-  renderMyLog();
-}
-
-function renderBudget() {
-  const t = myTeam();
-  document.getElementById('myBudget').textContent = fmt(t.budget);
-  document.getElementById('mySpent').textContent = fmt(t.spent);
-  document.getElementById('myLeft').textContent = fmt(remaining(t));
-  document.getElementById('myBar').style.width = `${Math.round((t.spent / (t.budget || 1)) * 100)}%`;
 }
 
 function renderBidPanel() {
   const waiting = S.phase !== 'bidding';
   document.getElementById('waitBox').classList.toggle('hidden', !waiting);
   document.getElementById('formBox').classList.toggle('hidden', waiting);
-  document.getElementById('bidRound').textContent = `Vòng ${S.round} / ${SETTINGS.rounds}`;
+  document.getElementById('myLeft').textContent = fmt(myLeft());
 
   if (waiting) {
-    const idle = document.getElementById('countdownIdle');
-    idle.textContent = S.phase === 'lobby' ? '--:--'
-      : S.phase === 'reveal' ? 'Đã chốt' : 'Kết thúc';
+    document.getElementById('waitBox').innerHTML = '<p class="muted center">'
+      + (S.phase === 'lobby' ? 'Đang chờ host mở lượt…'
+        : S.phase === 'reveal' ? 'Đã chốt lượt này.' : 'Giải đã kết thúc.') + '</p>';
   } else {
     const min = currentMinPrice();
     bidInput.min = String(min);
@@ -182,7 +170,7 @@ function renderBidPanel() {
     if (!stopCountdown) startTimer();
   }
 
-  // Khối công bố
+  // Khối công bố kết quả
   const revealBox = document.getElementById('revealBox');
   if (S.phase === 'reveal' && S.reveal) {
     revealBox.classList.remove('hidden');
@@ -192,20 +180,22 @@ function renderBidPanel() {
     const myEntry = r.entries.find(e => e.femaleId === MY_ID);
     revealBox.innerHTML = `
       <div class="divider"></div>
-      <h3 style="margin:0 0 12px">🔓 Kết quả lượt</h3>
-      ${iWon ? `<div class="reveal-banner">
-          <div class="winner">🎉 Bạn thắng ${esc(m.name)}!</div>
-          <div class="price">${fmt(r.price)} điểm</div>
-        </div>`
-        : r.winnerId ? `<div class="reveal-banner" style="background:rgba(255,255,255,.05);border-color:var(--border)">
-          <div class="muted">${esc(m.name)} thuộc về</div>
-          <div class="winner">${esc((FEMALES.find(f => f.id === r.winnerId) || {}).name)}</div>
-          <div class="price">${fmt(r.price)} điểm</div>
-        </div>`
-        : `<div class="reveal-banner" style="background:rgba(255,93,115,.12);border-color:rgba(255,93,115,.35)">
-          <div class="winner">Không ai mua ${esc(m.name)}</div>
-        </div>`}
-      ${myEntry ? `<p class="muted center">Bid của bạn: <b>${fmt(myEntry.amount)}</b> điểm</p>` : ''}
+      ${iWon
+        ? `<div class="reveal-banner">
+             <div class="muted">Chúc mừng!</div>
+             <div class="winner">Bạn có ${esc(m.name)}</div>
+             <div class="price">${fmt(r.price)} điểm</div>
+           </div>`
+        : r.winnerId
+          ? `<div class="reveal-banner plain">
+               <div class="muted">${esc(m.name)} thuộc về</div>
+               <div class="winner">${esc(nameOfFemale(r.winnerId))}</div>
+               <div class="price">${fmt(r.price)} điểm</div>
+             </div>`
+          : `<div class="reveal-banner fail">
+               <div class="winner">Không ai mua ${esc(m.name)}</div>
+             </div>`}
+      ${myEntry ? `<p class="muted center mt">Bạn đã trả ${fmt(myEntry.amount)} điểm</p>` : ''}
     `;
   } else {
     revealBox.classList.add('hidden');
@@ -215,77 +205,55 @@ function renderBidPanel() {
 
 function renderAuction() {
   const box = document.getElementById('auctionArea');
+  const panel = document.getElementById('malePanel');
   const maleId = S.currentMaleId || (S.reveal && S.reveal.maleId);
-  if (!maleId) { box.innerHTML = '<p class="muted center">Chưa bắt đầu.</p>'; return; }
+  if (!maleId) { panel.classList.add('hidden'); box.innerHTML = ''; return; }
+  panel.classList.remove('hidden');
   const m = MALES.find(x => x.id === maleId);
   const minP = computeMinPrice(m, MALES, SETTINGS);
   box.innerHTML = `
     <div class="male-hero">
       ${avatarHTML(m, 'big-avatar')}
       <div class="m-name">${esc(m.name)}</div>
-      <div class="mt"><span class="badge-rank ${m.rank > 6 ? 'low' : ''}">Hạng ${m.rank}</span></div>
+      <div class="mt"><span class="badge-rank ${m.rank > 6 ? 'low' : ''}">Hạng ${m.rank}/${MALES.length}</span></div>
       <div class="m-meta">
         <div>Giá sàn<b>${fmt(minP)}</b></div>
         <div>Bước giá<b>${fmt(SETTINGS.minIncrement)}</b></div>
-        <div>Điểm mạnh<b>${MALES.length - m.rank + 1}</b></div>
       </div>
     </div>`;
 }
 
-function teamCardHTML(t, highlight) {
+/** Hàng đội gọn cho mobile: nữ + tên 2 nam + điểm còn lại. */
+function teamRowHTML(t, mine) {
   const f = FEMALES.find(x => x.id === t.femaleId);
-  const slots = [];
+  const names = [];
   for (let i = 0; i < SETTINGS.malesPerTeam; i++) {
     const mid = t.maleIds[i];
-    if (mid) {
-      const m = MALES.find(x => x.id === mid);
-      slots.push(`<div class="member">${avatarHTML(m, 'avatar-sm')} <span>${esc(m.name)}</span>
-        <span class="muted" style="margin-left:auto;font-size:.72rem">#${m.rank}</span></div>`);
-    } else slots.push('<div class="member"><span class="slot-empty">— chưa có nam —</span></div>');
+    names.push(mid ? esc((MALES.find(x => x.id === mid) || {}).name) : '—');
   }
-  return `<div class="team-card ${needed(t, SETTINGS.malesPerTeam) ? 'incomplete' : ''}"
-      style="${highlight ? 'border-color:var(--primary);box-shadow:0 0 0 3px rgba(108,140,255,.15)' : ''}">
-    <div class="team-head">
-      ${avatarHTML(f, 'avatar')}
-      <div>
-        <div class="t-name">${esc(f.name)}${highlight ? ' (bạn)' : ''}</div>
-        <div class="t-strength">Sức mạnh đội: ${teamStrength(t, FEMALES, MALES)}</div>
-      </div>
+  const full = needed(t, SETTINGS.malesPerTeam) === 0;
+  return `<div class="team-row ${full ? '' : 'incomplete'} ${mine ? 'mine' : ''}">
+    ${avatarHTML(f, 'avatar-sm')}
+    <div class="tr-body">
+      <div class="tr-name">${esc(f.name)}${mine ? ' <span class="tag">bạn</span>' : ''}</div>
+      <div class="tr-males">${names.join(' · ')}</div>
     </div>
-    <div class="team-members">${slots.join('')}</div>
-    <div class="team-foot">
-      <span>Ngân sách <b>${fmt(t.budget)}</b></span>
-      <span>Còn <b>${fmt(remaining(t))}</b></span>
-    </div>
+    <div class="tr-left"><b>${fmt(remaining(t))}</b><span>điểm</span></div>
   </div>`;
 }
 
 function renderMyTeam() {
-  document.getElementById('myTeam').innerHTML = teamCardHTML(myTeam(), false);
+  document.getElementById('myTeam').innerHTML = teamRowHTML(myTeam(), true);
 }
 
 function renderOtherTeams() {
   const others = Object.values(S.teams).filter(t => t.femaleId !== MY_ID);
-  const done = others.filter(t => needed(t, SETTINGS.malesPerTeam) === 0).length;
-  document.getElementById('othersCount').textContent = `${done}/${others.length}`;
-  document.getElementById('otherTeams').innerHTML = others.map(t => teamCardHTML(t, false)).join('');
+  document.getElementById('otherTeams').innerHTML =
+    others.map(t => teamRowHTML(t, false)).join('');
 }
 
-function renderMyLog() {
-  const my = S.log.filter(l => l.winnerId === MY_ID);
-  const el = document.getElementById('myLog');
-  if (!my.length) { el.innerHTML = '<p class="muted center">Bạn chưa mua được nam nào.</p>'; return; }
-  el.innerHTML = my.map(l => {
-    const m = MALES.find(x => x.id === l.maleId);
-    const label = l.round === 'fill' ? 'Bổ sung' : `Vòng ${l.round}`;
-    return `<div class="row-item">
-      ${avatarHTML(m, 'avatar-sm')}
-      <span class="rank-pill" style="min-width:52px;font-size:.66rem">${label}</span>
-      <span class="r-name">${esc(m ? m.name : l.maleId)}</span>
-      <span class="r-price">${fmt(l.price)}</span>
-    </div>`;
-  }).join('');
-}
+/* ---------- HELPERS ---------- */
+function nameOfFemale(id) { return (FEMALES.find(f => f.id === id) || {}).name || id; }
 
 /* ---------- BOOT ---------- */
 renderAll();

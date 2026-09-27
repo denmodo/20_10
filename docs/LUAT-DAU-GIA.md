@@ -203,5 +203,7 @@ npm test                                  # 38 unit test trên Node
 
 Mở `test/tests.html` trong trình duyệt để chạy test có giao diện.
 
-Mô phỏng realtime đa tab: `index.html` → chế độ **Mock** không cần Firebase,
-dùng `BroadcastChannel` + `localStorage` để đồng bộ giữa các tab.
+Mô phỏng realtime đa tab: chưa cấu hình Firebase vẫn chạy được — dùng
+`BroadcastChannel` + `localStorage` để đồng bộ giữa các tab trong cùng máy.
+
+Mã phòng cố định là `main` (thiết kế cho buổi chơi dùng 1 lần).

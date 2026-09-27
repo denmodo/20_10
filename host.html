@@ -2,107 +2,86 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Host — Đấu giá cầu lông</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1020" />
+<title>Host — Đấu giá</title>
 <link rel="stylesheet" href="css/style.css" />
 </head>
-<body>
+<body class="page-app">
 
 <div class="topbar">
-  <div class="title">🎤 <span id="eventName">Đấu giá</span></div>
+  <div class="title">🎤 Host</div>
   <div class="right">
-    <span id="modeBadge" class="mode-badge"></span>
     <span class="pill lobby" id="phasePill">Sảnh chờ</span>
-    <span>Phòng: <b id="roomCode">—</b></span>
-    <span id="hostOnline" title="Trạng thái kết nối">🟢</span>
+    <span id="netStatus">🟢</span>
   </div>
 </div>
 
-<div class="wrap">
-  <div class="grid-2">
-    <!-- ============ CỘT TRÁI: ĐIỀU KHIỂN ============ -->
-    <div class="stack">
-      <div class="panel">
-        <h3>⚙️ Điều khiển <span class="count" id="roundLabel">Vòng 1 / 2</span></h3>
+<main class="wrap">
+  <div class="card-stack">
 
-        <div id="lobbyBox">
-          <div class="ok-box mb">Phòng đã sẵn sàng. Bấm <b>Bắt đầu vòng 1</b> khi mọi người đã vào.</div>
-          <button class="btn btn-primary" id="btnStart">▶️ Bắt đầu vòng 1</button>
+    <!-- Điều khiển -->
+    <section class="panel" id="controlPanel">
+      <div id="lobbyBox">
+        <p class="muted">Sẵn sàng khi mọi người đã vào phòng.</p>
+        <button class="btn btn-primary btn-lg" id="btnStart">Bắt đầu vòng 1</button>
+      </div>
+
+      <div id="biddingBox" class="hidden">
+        <div class="strip">
+          <span><b id="bidCount">0</b> đã đặt giá</span>
+          <span class="countdown-sm" id="countdown">01:00</span>
         </div>
-
-        <div id="biddingBox" class="hidden">
-          <div class="countdown" id="countdown">01:00</div>
-          <p class="muted center">Đang nhận bid kín — người chơi không thấy bid của nhau.</p>
-          <div class="stat-grid mb">
-            <div class="stat"><div class="v" id="bidCount">0</div><div class="l">Đã bid</div></div>
-            <div class="stat"><div class="v" id="needCount">0</div><div class="l">Bắt buộc bid</div></div>
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-accent" id="btnReveal">🔓 Chốt lượt ngay</button>
-            <button class="btn btn-ghost" id="btnExtend">+30s</button>
-          </div>
-        </div>
-
-        <div id="revealBox" class="hidden">
-          <div id="revealBanner"></div>
-          <div id="revealList" class="bid-list"></div>
-          <div class="btn-row mt">
-            <button class="btn btn-primary" id="btnNext">➡️ Vòng tiếp theo</button>
-            <button class="btn btn-ghost" id="btnSkipToFill">⏭️ Bỏ qua & lấp đầy</button>
-          </div>
-        </div>
-
-        <div id="doneBox" class="hidden">
-          <div class="ok-box">🎉 Giải đã hoàn tất! Xem báo cáo cân bằng bên phải.</div>
-          <div class="btn-row mt">
-            <button class="btn btn-warn" id="btnFill2">🔧 Chạy vòng bổ sung</button>
-            <button class="btn btn-danger" id="btnReset">♻️ Chơi lại từ đầu</button>
-          </div>
+        <p class="muted center mt">Bid đang được giữ kín.</p>
+        <div class="btn-row mt">
+          <button class="btn btn-accent btn-lg" id="btnReveal">Chốt lượt</button>
+          <button class="btn btn-ghost" id="btnExtend">+30s</button>
         </div>
       </div>
 
-      <div class="panel">
-        <h3>👥 Người đang online <span class="count" id="presenceCount">0</span></h3>
-        <div class="presence" id="presence"></div>
-      </div>
-
-      <div class="panel">
-        <h3>📊 Báo cáo cân bằng <span class="count" id="balanceStd">—</span></h3>
-        <div class="stat-grid mb">
-          <div class="stat"><div class="v" id="statMean">—</div><div class="l">Sức mạnh TB</div></div>
-          <div class="stat"><div class="v" id="statStd">—</div><div class="l">Độ lệch</div></div>
-          <div class="stat"><div class="v" id="statLeft">—</div><div class="l">Điểm dư tổng</div></div>
-        </div>
-        <div id="balanceVerdict"></div>
-      </div>
-
-      <div class="panel">
-        <h3>🕘 Lịch sử đấu giá <span class="count" id="logCount">0</span></h3>
-        <div class="list" id="logList"></div>
-      </div>
-    </div>
-
-    <!-- ============ CỘT PHẢI: SÂN ĐẤU GIÁ & ĐỘI HÌNH ============ -->
-    <div class="stack">
-      <div class="panel">
-        <h3>🏸 Nam đang đấu giá</h3>
-        <div id="auctionArea">
-          <p class="muted center">Chưa bắt đầu. Bấm “Bắt đầu vòng 1”.</p>
+      <div id="revealBox" class="hidden">
+        <div id="revealBanner"></div>
+        <div id="revealList" class="bid-list"></div>
+        <div class="btn-row mt">
+          <button class="btn btn-primary btn-lg" id="btnNext">Lượt tiếp theo</button>
+          <button class="btn btn-ghost" id="btnSkipToFill">Lấp đầy</button>
         </div>
       </div>
 
-      <div class="panel">
-        <h3>📋 Danh sách nam <span class="count" id="malesLeft">12 còn lại</span></h3>
-        <div class="list" id="malesList"></div>
+      <div id="doneBox" class="hidden">
+        <div class="ok-box">Giải đã hoàn tất.</div>
+        <div class="btn-row mt">
+          <button class="btn btn-warn" id="btnFill2">Chạy vòng bổ sung</button>
+          <button class="btn btn-danger" id="btnReset">Chơi lại</button>
+        </div>
       </div>
+    </section>
 
-      <div class="panel">
-        <h3>🏆 Đội hình <span class="count" id="teamsDone">0/6</span></h3>
-        <div class="teams" id="teams"></div>
-      </div>
-    </div>
+    <!-- Nam đang đấu giá -->
+    <section class="panel hidden" id="malePanel">
+      <div id="auctionArea"></div>
+    </section>
+
+    <!-- Đội hình -->
+    <section class="panel">
+      <h3>Đội hình <span class="count" id="teamsDone">0/6</span></h3>
+      <div id="teams" class="team-rows"></div>
+    </section>
+
+    <!-- Cân bằng -->
+    <section class="panel" id="balancePanel">
+      <h3>Cân bằng <span class="count" id="balanceStd">—</span></h3>
+      <div id="balanceVerdict"></div>
+    </section>
+
+    <!-- Người online -->
+    <section class="panel">
+      <h3>Đang online <span class="count" id="presenceCount">0</span></h3>
+      <div class="presence" id="presence"></div>
+    </section>
+
   </div>
-</div>
+</main>
 
 <div id="toast"></div>
 

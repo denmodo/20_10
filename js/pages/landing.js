@@ -1,11 +1,13 @@
 /* =============================================================
  * landing.js — Trang chủ: chọn vai trò & vào phòng
+ * Mã phòng cố định 'main' (dùng 1 lần, không cần nhập).
  * ============================================================= */
 import { SETTINGS, FEMALES } from '../config.js';
-import { qs, esc, initials, avatarHTML, stars, toast, showModeBadge } from '../ui.js';
+import { esc, avatarHTML, toast } from '../ui.js';
+
+const ROOM = 'main';
 
 document.getElementById('eventName').textContent = SETTINGS.eventName;
-showModeBadge();
 
 /* ---------- Tabs ---------- */
 document.querySelectorAll('.tab').forEach(tab => {
@@ -24,7 +26,6 @@ picker.innerHTML = FEMALES.map(f => `
   <div class="female-chip ${f.id === pickedFemale ? 'selected' : ''}" data-id="${esc(f.id)}">
     ${avatarHTML(f, 'avatar')}
     <div class="name">${esc(f.name)}</div>
-    <div class="stars">${stars(f.strength)}</div>
   </div>`).join('');
 
 picker.addEventListener('click', e => {
@@ -40,29 +41,19 @@ function go(page, params) {
 }
 
 document.getElementById('hostGo').addEventListener('click', () => {
-  const room = (document.getElementById('hostRoom').value || 'demo').trim();
   const secret = document.getElementById('hostSecret').value;
   if (secret !== SETTINGS.hostSecret) return toast('Mật khẩu host không đúng.', 'err');
-  go('host.html', { room });
+  go('host.html', { room: ROOM });
 });
 
 document.getElementById('playerGo').addEventListener('click', () => {
-  const room = (document.getElementById('playerRoom').value || 'demo').trim();
   const secret = document.getElementById('playerSecret').value;
   const female = FEMALES.find(f => f.id === pickedFemale);
   if (!female) return toast('Chưa chọn người chơi.', 'err');
-  if (secret !== female.secret) return toast('Mật khẩu riêng không đúng.', 'err');
-  go('player.html', { room, f: female.id });
+  if (secret !== female.secret) return toast('Mật khẩu không đúng.', 'err');
+  go('player.html', { room: ROOM, f: female.id });
 });
 
 document.getElementById('specGo').addEventListener('click', () => {
-  const room = (document.getElementById('specRoom').value || 'demo').trim();
-  go('spectator.html', { room });
+  go('spectator.html', { room: ROOM });
 });
-
-/* Tự động điền mã phòng demo */
-if (qs('room')) {
-  ['hostRoom', 'playerRoom', 'specRoom'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = qs('room');
-  });
-}

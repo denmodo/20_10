@@ -28,9 +28,13 @@ export function runTests() {
   /* ---------- Nhóm 1: NGÂN SÁCH ---------- */
   test('Ngân sách: nữ mạnh nhất nhận ít điểm nhất', () => {
     const t = budgetTable(FEMALES, SETTINGS);
-    const strongest = t.find(x => x.id === 'F1');
-    const weakest = t.find(x => x.id === 'F6');
-    ok(strongest.budget < weakest.budget, 'F1 phải ít điểm hơn F6');
+    const strongest = t.reduce((a, b) => (b.strength > a.strength ? b : a));
+    const weakest = t.reduce((a, b) => (b.strength < a.strength ? b : a));
+    ok(strongest.budget <= weakest.budget,
+      `${strongest.name} (strength ${strongest.strength}) phải ≤ ${weakest.name} (${weakest.strength})`);
+    if (strongest.strength > weakest.strength) {
+      ok(strongest.budget < weakest.budget, 'nữ mạnh hơn phải ít điểm hơn');
+    }
   });
 
   test('Ngân sách: tổng xấp xỉ totalPoints (sai số ≤ n)', () => {
@@ -57,18 +61,20 @@ export function runTests() {
   });
 
   /* ---------- Nhóm 2: GIÁ SÀN ---------- */
-  test('Giá sàn: rank 1 đắt nhất, rank cuối rẻ nhất', () => {
+  test('Giá sàn: rank tốt nhất đắt nhất, rank kém nhất rẻ nhất', () => {
     const t = priceTable(MALES, SETTINGS);
-    const p1 = t.find(x => x.rank === 1).minPrice;
-    const p12 = t.find(x => x.rank === 12).minPrice;
-    ok(p1 > p12, 'rank 1 phải đắt hơn rank 12');
-    eq(p1, SETTINGS.basePrice, 'rank 1 phải bằng basePrice:');
+    const best = t.reduce((a, b) => (b.rank < a.rank ? b : a));   // rank nhỏ = mạnh
+    const worst = t.reduce((a, b) => (b.rank > a.rank ? b : a));
+    ok(best.minPrice >= worst.minPrice,
+      `rank ${best.rank} (${best.minPrice}) phải ≥ rank ${worst.rank} (${worst.minPrice})`);
+    eq(best.minPrice, SETTINGS.basePrice, 'rank tốt nhất phải bằng basePrice:');
   });
 
   test('Giá sàn: đơn điệu giảm theo rank', () => {
     const t = priceTable(MALES, SETTINGS).sort((a, b) => a.rank - b.rank);
     for (let i = 1; i < t.length; i++) {
-      ok(t[i].minPrice <= t[i - 1].minPrice, `rank ${t[i].rank} phải ≤ rank ${t[i - 1].rank}`);
+      ok(t[i].minPrice <= t[i - 1].minPrice,
+        `rank ${t[i].rank} (${t[i].minPrice}) phải ≤ rank ${t[i - 1].rank} (${t[i - 1].minPrice})`);
     }
   });
 
@@ -166,10 +172,10 @@ export function runTests() {
 
   test('Dự phòng: cheapestAvailablePrice bỏ qua nam đang đấu giá', () => {
     const st = createInitialState();
-    const current = MALES.find(m => m.rank === 12); // nam rẻ nhất
-    const p = cheapestAvailablePrice(st, MALES, SETTINGS, current.id);
-    const others = MALES.filter(m => m.id !== current.id).map(m => computeMinPrice(m, MALES, SETTINGS));
-    eq(p, Math.min(...others), 'phải lấy giá rẻ thứ 2:');
+    const worst = MALES.reduce((a, b) => (b.rank > a.rank ? b : a));  // nam yếu nhất
+    const p = cheapestAvailablePrice(st, MALES, SETTINGS, worst.id);
+    const others = MALES.filter(m => m.id !== worst.id).map(m => computeMinPrice(m, MALES, SETTINGS));
+    eq(p, Math.min(...others), 'phải bỏ qua nam đang đấu giá:');
   });
 
   /* ---------- Nhóm 4: TIE-BREAK ---------- */

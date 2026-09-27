@@ -39,30 +39,30 @@ export const SETTINGS = {
  * img     : link ảnh (để trống '' -> dùng avatar chữ cái).
  */
 export const FEMALES = [
-  { id: 'F1', name: 'Ngọc Anh',  strength: 10, secret: 'nu01', img: '' },
-  { id: 'F2', name: 'Thu Hà',    strength: 9,  secret: 'nu02', img: '' },
-  { id: 'F3', name: 'Minh Thư',  strength: 7,  secret: 'nu03', img: '' },
-  { id: 'F4', name: 'Bảo Trân',  strength: 6,  secret: 'nu04', img: '' },
-  { id: 'F5', name: 'Lan Phương',strength: 5,  secret: 'nu05', img: '' },
-  { id: 'F6', name: 'Hồng Nhung',strength: 3,  secret: 'nu06', img: '' },
+  { id: 'F1', name: 'Hoa',      strength: 2,    secret: '1', img: '' },
+  { id: 'F2', name: 'Ngọc',     strength: 5,    secret: '2', img: '' },
+  { id: 'F3', name: 'Hương',    strength: 4,    secret: '3', img: '' },
+  { id: 'F4', name: 'Linh',     strength: 4,    secret: '4', img: '' },
+  { id: 'F5', name: 'Phượng',   strength: 4,    secret: '5', img: '' },
+  { id: 'F6', name: 'Châu',     strength: 3,    secret: '6', img: '' },
 ];
 
 /* ---------- 3. 12 NAM ĐƯỢC ĐẤU GIÁ ----------
  * rank: 1..12 (1 = mạnh nhất). Giá sàn tự tính từ basePrice + rank.
  */
 export const MALES = [
-  { id: 'M1',  name: 'Tuấn Kiệt',  rank: 1,  img: '' },
-  { id: 'M2',  name: 'Đức Huy',    rank: 2,  img: '' },
-  { id: 'M3',  name: 'Hoàng Long', rank: 3,  img: '' },
-  { id: 'M4',  name: 'Văn Sơn',    rank: 4,  img: '' },
-  { id: 'M5',  name: 'Quốc Bảo',   rank: 5,  img: '' },
-  { id: 'M6',  name: 'Trọng Nghĩa',rank: 6,  img: '' },
-  { id: 'M7',  name: 'Anh Dũng',   rank: 7,  img: '' },
-  { id: 'M8',  name: 'Minh Quân',  rank: 8,  img: '' },
-  { id: 'M9',  name: 'Hải Đăng',   rank: 9,  img: '' },
-  { id: 'M10', name: 'Thanh Tùng', rank: 10, img: '' },
-  { id: 'M11', name: 'Xuân Trường',rank: 11, img: '' },
-  { id: 'M12', name: 'Bá Khiêm',   rank: 12, img: '' },
+  { id: 'M1',   name: 'Tân',     rank: 1,  img: '' },
+  { id: 'M2',   name: 'Hà',      rank: 2,  img: '' },
+  { id: 'M3',   name: 'Đức',     rank: 3,  img: '' },
+  { id: 'M4',   name: 'Bộp',     rank: 4,  img: '' },
+  { id: 'M5',   name: 'Thái',    rank: 5,  img: '' },
+  { id: 'M6',   name: 'Tép',     rank: 5,  img: '' },
+  { id: 'M7',   name: 'Nam',     rank: 5,  img: '' },
+  { id: 'M8',   name: 'Diễn',    rank: 6,  img: '' },
+  { id: 'M9',   name: 'Công',    rank: 8,  img: '' },
+  { id: 'M10',  name: 'Bình',    rank: 8,  img: '' },
+  { id: 'M11',  name: 'a Hiếu',  rank: 8,  img: '' },
+  { id: 'M12',  name: 'Huân',    rank: 9,  img: '' },
 ];
 
 /* =============================================================

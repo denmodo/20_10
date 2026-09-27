@@ -266,3 +266,106 @@ input[type="number"] { text-align: center; font-size: 1.4rem; font-weight: 700; 
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+/* =============================================================
+ * MOBILE-FIRST — bố cục gọn cho 1 lần dùng
+ * ============================================================= */
+
+/* App layout: 1 cột dọc, có safe-area cho tai thỏ */
+.page-app { padding-bottom: env(safe-area-inset-bottom); }
+.page-app .wrap { max-width: 560px; padding: 12px 12px 24px; }
+.card-stack { display: grid; gap: 12px; }
+
+/* Panel gọn hơn trên mobile */
+.page-app .panel { padding: 14px; border-radius: 14px; }
+.page-app .panel h3 { font-size: 0.88rem; margin-bottom: 10px; }
+
+/* Topbar gọn */
+.page-app .topbar { padding: 10px 14px; }
+.page-app .topbar .title { font-size: 0.95rem; }
+.page-app .topbar .right { gap: 8px; font-size: 0.78rem; }
+
+/* Thanh thông tin 1 hàng: nhãn trái — giá trị phải */
+.strip {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(0,0,0,0.28); border: 1px solid var(--border); font-size: 0.88rem;
+}
+.strip b { font-size: 1.15rem; color: var(--gold); }
+
+/* Đồng hồ nhỏ gọn trong thanh strip */
+.countdown-sm {
+  font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.05rem;
+  padding: 3px 10px; border-radius: 8px; background: rgba(255,176,32,0.16); color: var(--warn);
+}
+.countdown-sm.urgent { color: var(--danger); background: rgba(255,93,115,0.18); animation: pulse 1s infinite; }
+
+/* Chip bấm nhanh — to, dễ chạm trên mobile */
+.quick-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chip {
+  flex: 1 1 auto; min-width: 56px; padding: 9px 10px; border-radius: 10px; cursor: pointer;
+  background: rgba(255,255,255,0.07); border: 1px solid var(--border); color: var(--text);
+  font-family: inherit; font-size: 0.82rem; font-weight: 600; transition: 0.15s;
+}
+.chip:hover { background: rgba(255,255,255,0.14); }
+.chip:active { transform: scale(0.96); }
+
+/* Dòng gợi ý dưới ô nhập giá */
+.hint { font-size: 0.79rem; color: var(--muted); min-height: 1.1em; margin-bottom: 6px; }
+
+/* Nút lớn dễ bấm */
+.btn-lg { padding: 15px 20px; font-size: 1rem; }
+
+/* Hàng đội gọn: avatar + tên + điểm còn lại */
+.team-rows { display: grid; gap: 7px; }
+.team-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 11px;
+  border-radius: 11px; background: rgba(0,0,0,0.26); border: 1px solid transparent;
+}
+.team-row.incomplete { border-color: rgba(255,93,115,0.32); }
+.team-row.mine { border-color: rgba(108,140,255,0.5); background: rgba(108,140,255,0.1); }
+.team-row .tr-body { flex: 1; min-width: 0; }
+.team-row .tr-name { font-weight: 700; font-size: 0.88rem; display: flex; align-items: center; gap: 6px; }
+.team-row .tr-name .tag {
+  font-size: 0.62rem; font-weight: 600; padding: 1px 6px; border-radius: 999px;
+  background: rgba(108,140,255,0.28); color: #cdd9ff; text-transform: uppercase;
+}
+.team-row .tr-males {
+  font-size: 0.78rem; color: var(--muted); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.team-row .tr-left { text-align: right; flex-shrink: 0; }
+.team-row .tr-left b { display: block; font-size: 1rem; color: var(--gold); }
+.team-row .tr-left span { font-size: 0.62rem; color: var(--muted); }
+
+/* Reveal banner phiên bản gọn */
+.reveal-banner.plain { background: rgba(255,255,255,0.05); border-color: var(--border); }
+.reveal-banner.fail { background: rgba(255,93,115,0.12); border-color: rgba(255,93,115,0.35); }
+.reveal-banner .winner { font-size: 1.2rem; }
+.reveal-banner .price { font-size: 0.95rem; }
+
+/* Hero nam gọn hơn trên mobile */
+.page-app .male-hero { padding: 18px 14px; }
+.page-app .male-hero .big-avatar { width: 74px; height: 74px; font-size: 30px; border-radius: 20px; }
+.page-app .male-hero .m-name { font-size: 1.28rem; }
+.page-app .male-hero .m-meta { gap: 14px; font-size: 0.76rem; }
+
+/* Ô nhập giá to, dễ chạm */
+.page-app input[type="number"] { padding: 14px; font-size: 1.5rem; }
+
+/* Điện thoại nhỏ: giảm thêm */
+@media (max-width: 380px) {
+  .page-app .wrap { padding: 10px 10px 20px; }
+  .chip { min-width: 48px; font-size: 0.76rem; padding: 8px; }
+  .female-picker { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Trang chủ gọn cho mobile */
+.page-center { padding: 14px; }
+.card { padding: 20px; }
+.card-lg { max-width: 440px; }
+.brand .logo { width: 54px; height: 54px; font-size: 26px; margin-bottom: 8px; }
+.brand h1 { font-size: 1.3rem; }
+.tabs { margin-bottom: 14px; }
+.tab { padding: 11px 6px; font-size: 0.85rem; }
+.female-picker { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
