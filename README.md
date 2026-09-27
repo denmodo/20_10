@@ -81,6 +81,26 @@ export const firebaseConfig = {
 > ⚠️ `databaseURL` **bắt buộc** phải có. Nếu thiếu, app vẫn chạy nhưng ở chế độ Mock.
 > Huy hiệu ở góc trên sẽ chuyển từ **MOCK (OFFLINE)** → **FIREBASE ONLINE**.
 
+### Trạng thái kết nối
+
+App tự kiểm tra kết nối thật (đọc/ghi thử) và hiển thị ở góc phải:
+
+| Biểu tượng | Ý nghĩa |
+|---|---|
+| 🟡 | Chế độ Mock (offline) |
+| 🟠 | Đang kết nối Firebase… |
+| 🟢 | Đã kết nối, đọc/ghi được |
+| 🔴 | Lỗi — kèm banner đỏ nêu cách khắc phục |
+
+Nếu database bị **vô hiệu hoá** (Firebase trả `HTTP 423 Locked`) hoặc **rules chặn**
+(`PERMISSION_DENIED`), app sẽ hiện banner đỏ ngay đầu trang thay vì âm thầm thất bại.
+
+**Cách khắc phục nhanh:**
+1. Firebase Console → **Realtime Database** → nếu thấy nút **Create Database** thì DB chưa tồn tại → tạo mới.
+2. Tab **Rules** → dán `firebase-rules.json` → **Publish**.
+3. Kiểm tra `databaseURL` trong `js/firebase-config.js` khớp với DB vừa tạo
+   (region khác thì URL có dạng `...asia-southeast1.firebasedatabase.app`).
+
 ### Bước 4 — Áp dụng security rules
 
 Vào **Realtime Database → Rules** → dán nội dung `firebase-rules.json` → **Publish**.

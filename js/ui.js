@@ -74,6 +74,49 @@ export function showModeBadge() {
   });
 }
 
+/**
+ * Hiển thị trạng thái kết nối backend lên một phần tử (vd #hostOnline).
+ * Nếu Firebase lỗi -> hiện banner đỏ + badge "Firebase lỗi".
+ */
+let statusBannerShown = false;
+export function bindStatus(room, elId = 'hostOnline') {
+  const el = document.getElementById(elId);
+  room.onStatus(({ connected, error }) => {
+    if (el) {
+      if (room.mode === 'mock') {
+        el.textContent = '🟡';
+        el.title = 'Chế độ mô phỏng (offline) — dữ liệu chỉ lưu trên máy này';
+        return;
+      }
+      el.textContent = error ? '🔴' : (connected ? '🟢' : '🟠');
+      el.title = error || (connected ? 'Đã kết nối Firebase' : 'Đang kết nối Firebase…');
+    }
+
+    if (room.mode === 'firebase' && error) {
+      const b = document.getElementById('modeBadge');
+      if (b) { b.textContent = 'Firebase lỗi'; b.className = 'mode-badge mock'; b.title = error; }
+      if (!statusBannerShown) {
+        statusBannerShown = true;
+        showConnBanner(error);
+      }
+    }
+  });
+}
+
+/** Banner đỏ cố định ở đầu trang, nêu rõ cách khắc phục. */
+function showConnBanner(msg) {
+  if (document.getElementById('connBanner')) return;
+  const bar = document.createElement('div');
+  bar.id = 'connBanner';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:200;' +
+    'background:#7a1626;color:#ffe4e8;padding:10px 16px;font-size:.84rem;' +
+    'border-bottom:2px solid #ff5d73;line-height:1.5;white-space:pre-line';
+  bar.innerHTML = `<b>⚠️ Không kết nối được Firebase</b>\n${esc(msg)}\n` +
+    `<span style="opacity:.8">App vẫn chạy nhưng KHÔNG đồng bộ giữa các máy. ` +
+    `Xem README.md → mục Firebase để khắc phục.</span>`;
+  document.body.appendChild(bar);
+}
+
 /** Đồng hồ đếm ngược dùng chung, trả về hàm dừng. */
 export function startCountdown(el, endsAt, onEnd) {
   let stop = false;

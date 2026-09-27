@@ -9,7 +9,7 @@ import {
   createInitialState, validateBid, remaining, needed, rankBids, teamStrength, maxAllowedBid,
 } from '../auction.js';
 import { openRoom, remoteToState } from '../store.js';
-import { qs, esc, toast, fmt, avatarHTML, showModeBadge, startCountdown, haptic } from '../ui.js';
+import { qs, esc, toast, fmt, avatarHTML, showModeBadge, startCountdown, haptic, bindStatus } from '../ui.js';
 
 const ROOM = qs('room', 'demo');
 const MY_ID = qs('f', 'F1');
@@ -27,6 +27,7 @@ showModeBadge();
 /* ---------- KẾT NỐI ---------- */
 const room = openRoom(ROOM);
 await room.connect();
+bindStatus(room, 'hostOnline');
 room.setPresence({ role: 'player', femaleId: MY_ID, name: ME.name });
 
 let S = createInitialState(FEMALES);   // state suy ra từ remote

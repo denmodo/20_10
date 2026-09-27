@@ -10,7 +10,7 @@ import {
   fillRemaining, balanceReport, remaining, needed, nextMaleForAuction, isFinished,
 } from '../auction.js';
 import { openRoom } from '../store.js';
-import { qs, esc, toast, fmt, avatarHTML, initials, showModeBadge, startCountdown } from '../ui.js';
+import { qs, esc, toast, fmt, avatarHTML, initials, showModeBadge, startCountdown, bindStatus } from '../ui.js';
 
 const ROOM = qs('room', 'demo');
 const BACKUP_KEY = `hostState:${ROOM}`;
@@ -53,8 +53,7 @@ room.onState(remote => {
 await room.setHostOnline(true);
 room.setPresence({ role: 'host', name: 'Host' });
 room.onPresence(list => renderPresence(list));
-document.getElementById('hostOnline').title = room.mode === 'firebase'
-  ? 'Đã kết nối Firebase' : 'Chế độ mock (offline)';
+bindStatus(room, 'hostOnline');
 
 /* Ghi state hiện tại lên remote khi mở phòng */
 await pushAll();

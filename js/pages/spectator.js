@@ -7,7 +7,7 @@
 import { SETTINGS, FEMALES, MALES, computeMinPrice, priceTable } from '../config.js';
 import { createInitialState, remaining, needed, balanceReport, teamStrength } from '../auction.js';
 import { openRoom, remoteToState } from '../store.js';
-import { qs, esc, fmt, avatarHTML, showModeBadge, startCountdown } from '../ui.js';
+import { qs, esc, fmt, avatarHTML, showModeBadge, startCountdown, bindStatus } from '../ui.js';
 
 const ROOM = qs('room', 'demo');
 document.getElementById('roomCode').textContent = ROOM;
@@ -16,6 +16,7 @@ showModeBadge();
 
 const room = openRoom(ROOM);
 await room.connect();
+bindStatus(room, 'netStatus');
 
 let S = createInitialState(FEMALES);
 let stopCountdown = null;

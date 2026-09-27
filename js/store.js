@@ -79,6 +79,7 @@ class MockStore {
     this.chan = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(this.key) : null;
     this.stateCb = () => {};
     this.presenceCb = () => {};
+    this.statusCb = () => {};
     this.clientId = 'c' + Math.random().toString(36).slice(2, 10);
     this._onChan = (ev) => {
       if (ev && ev.data && ev.data.from === this.clientId) return;
@@ -200,6 +201,7 @@ class MockStore {
     this.presenceCb(this._presenceList(d));
   }
   onPresence(cb) { this.presenceCb = cb; }
+  onStatus(cb) { this.statusCb = cb; cb({ connected: true, error: null }); }
 
   close() {
     if (this.chan) { this.chan.removeEventListener('message', this._onChan); this.chan.close(); }
@@ -217,9 +219,12 @@ class FirebaseStore {
     this.ref = null;
     this.stateCb = () => {};
     this.presenceCb = () => {};
+    this.statusCb = () => {};
     this.clientId = 'c' + Math.random().toString(36).slice(2, 10);
     this._unsub = [];
     this._latest = null;
+    this.connected = false;
+    this.lastError = null;
   }
 
   async connect() {
@@ -230,10 +235,40 @@ class FirebaseStore {
     this.fns = dbMod;
     this.root = dbMod.ref(this.db, `rooms/${this.code}`);
 
+    // Theo dõi kết nối THẬT tới Firebase (.info/connected)
+    this._unsub.push(dbMod.onValue(dbMod.ref(this.db, '.info/connected'), snap => {
+      this.connected = snap.val() === true;
+      if (this.connected) {
+        this.lastError = null;
+        if (this._watchdog) { clearTimeout(this._watchdog); this._watchdog = null; }
+      }
+      this.statusCb({ connected: this.connected, error: this.lastError });
+    }));
+
+    // Watchdog: nếu sau 8s vẫn chưa kết nối -> báo lỗi (DB bị lock/tắt mạng)
+    this._watchdog = setTimeout(() => {
+      if (!this.connected) {
+        this.lastError = 'Không kết nối được Firebase Realtime Database.\n' +
+          'Kiểm tra: (1) databaseURL đúng, (2) database chưa bị vô hiệu hoá ' +
+          '(Console → Realtime Database), (3) rules cho phép đọc/ghi.';
+        this.statusCb({ connected: false, error: this.lastError });
+      }
+    }, 8000);
+
+    // Probe: đọc thật 1 lần để phát hiện DB bị vô hiệu hoá (HTTP 423 Locked).
+    // .info/connected vẫn = true khi DB bị lock, nên phải thử đọc dữ liệu.
+    this._probe();
+
     this._unsub.push(dbMod.onValue(this.root, snap => {
       this._latest = snap.val();
-      this.stateCb(remoteToState(this._latest));
+      this.stateCb(this._latest);              // raw remote object
+    }, err => {
+      // Ví dụ: database bị deactivated, hoặc rules từ chối
+      this.lastError = (err && err.message) || 'Không đọc được dữ liệu Firebase';
+      this.connected = false;
+      this.statusCb({ connected: false, error: this.lastError });
     }));
+
     this._unsub.push(dbMod.onValue(dbMod.ref(this.db, `rooms/${this.code}/presence`), snap => {
       const now = Date.now();
       const p = snap.val() || {};
@@ -241,6 +276,46 @@ class FirebaseStore {
         .map(([id, v]) => ({ id, ...v }))
         .filter(x => now - (x.ts || 0) < 60000));
     }));
+  }
+
+  /**
+   * Thử GHI 1 giá trị tạm để phát hiện database bị vô hiệu hoá (HTTP 423 Locked).
+   * Đọc có thể vẫn "thành công" (trả null) khi DB bị lock, nên phải thử ghi.
+   * Bọc timeout để không treo UI khi mạng/DB không phản hồi.
+   */
+  _probe() {
+    const probeRef = this.fns.ref(this.db, `rooms/${this.code}/_health`);
+    const timeoutMs = 12000;
+    const timer = new Promise(res => setTimeout(() => res({ __timeout: true }), timeoutMs));
+
+    const attempt = this.fns.set(probeRef, Date.now())
+      .then(() => this.fns.remove(probeRef))
+      .then(() => ({ ok: true }))
+      .catch(e => ({ err: e }));
+
+    Promise.race([attempt, timer]).then(out => {
+      if (out.__timeout) {
+        this.lastError = `Firebase không phản hồi sau ${timeoutMs / 1000}s.\n` +
+          'Kiểm tra databaseURL và trạng thái Realtime Database trong Firebase Console.';
+      } else if (out.err) {
+        const code = out.err.code || '';
+        const msg = (out.err.message || '').split('\n')[0];
+        if (code === 'PERMISSION_DENIED') {
+          this.lastError = 'Firebase từ chối truy cập (PERMISSION_DENIED).\n' +
+            'Hãy dán nội dung firebase-rules.json vào tab Rules rồi bấm Publish.';
+        } else {
+          this.lastError = `Không ghi được lên Firebase: ${msg || code || 'lỗi không xác định'}.\n` +
+            'Nếu database báo "deactivated", hãy tạo lại Realtime Database trong Firebase Console.';
+        }
+      } else {
+        this.connected = true;
+        this.lastError = null;
+        this.statusCb({ connected: true, error: null });
+        return;
+      }
+      this.connected = false;
+      this.statusCb({ connected: false, error: this.lastError });
+    });
   }
 
   async updateMeta(patch) { return this.fns.update(this.root, { meta: { ...(this._latest?.meta || {}), ...patch } }); }
@@ -282,8 +357,12 @@ class FirebaseStore {
     if (this._latest !== null) cb(this._latest);   // raw remote object
   }
   onPresence(cb) { this.presenceCb = cb; }
+  onStatus(cb) {
+    this.statusCb = cb;
+    cb({ connected: this.connected, error: this.lastError });
+  }
 
-  close() { this._unsub.forEach(u => u()); if (this._hb) clearInterval(this._hb); }
+  close() { this._unsub.forEach(u => u()); if (this._hb) clearInterval(this._hb); if (this._watchdog) clearTimeout(this._watchdog); }
 }
 
 /* =============================================================
