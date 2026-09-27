@@ -1,0 +1,37 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomCode": {
+        ".read": true,
+        ".write": true,
+
+        "meta": {
+          ".validate": "true"
+        },
+
+        "bids": {
+          "$femaleId": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          }
+        },
+
+        "teams": {
+          "$femaleId": {
+            "budget": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "spent":  { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "maleIds": { ".validate": "true" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "presence": {
+          "$clientId": {
+            ".validate": "newData.hasChildren(['ts'])"
+          }
+        },
+
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}

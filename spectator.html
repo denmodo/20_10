@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Khán giả — Bảng đấu giá</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">👀 <span id="eventName">Đấu giá</span> — Bảng trực tiếp</div>
+  <div class="right">
+    <span id="modeBadge" class="mode-badge"></span>
+    <span class="pill lobby" id="phasePill">Sảnh chờ</span>
+    <span>Phòng: <b id="roomCode">—</b></span>
+    <span id="netStatus">🟢</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="panel mb">
+    <div class="stat-grid">
+      <div class="stat"><div class="v" id="sPhase">—</div><div class="l">Trạng thái</div></div>
+      <div class="stat"><div class="v" id="sRound">0/2</div><div class="l">Vòng</div></div>
+      <div class="stat"><div class="v" id="sBidders">0</div><div class="l">Lượt đã đặt giá</div></div>
+      <div class="stat"><div class="v" id="sCountdown">--:--</div><div class="l">Đếm ngược</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2 mb">
+    <div class="panel">
+      <h3>🏸 Nam đang đấu giá</h3>
+      <div id="auctionArea"><p class="muted center">Chưa bắt đầu.</p></div>
+      <div id="revealBox"></div>
+    </div>
+
+    <div class="stack">
+      <div class="panel">
+        <h3>📋 Danh sách nam <span class="count" id="malesLeft">12</span></h3>
+        <div class="list" id="malesList"></div>
+      </div>
+      <div class="panel">
+        <h3>🕘 Diễn biến <span class="count" id="logCount">0</span></h3>
+        <div class="list" id="logList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel mb">
+    <h3>🏆 Đội hình <span class="count" id="teamsDone">0/6</span></h3>
+    <div class="teams" id="teams"></div>
+  </div>
+
+  <div class="panel">
+    <h3>📊 Cân bằng <span class="count" id="stdLabel">σ = —</span></h3>
+    <div id="balanceVerdict"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module" src="js/pages/spectator.js"></script>
+</body>
+</html>

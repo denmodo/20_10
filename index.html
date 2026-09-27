@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Đấu giá cầu lông — Trang chủ</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="page-center">
+
+<div class="bg-orbs" aria-hidden="true">
+  <span></span><span></span><span></span>
+</div>
+
+<main class="card card-lg">
+  <header class="brand">
+    <div class="logo">🏸</div>
+    <h1>Đấu Giá Cầu Lông</h1>
+    <p class="muted" id="eventName">Giải Cầu Lông Vui Vẻ</p>
+    <span class="mode-badge" id="modeBadge" title="Chế độ lưu trữ"></span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="host" role="tab">🎤 Host</button>
+    <button class="tab" data-tab="player" role="tab">🙋 Người chơi</button>
+    <button class="tab" data-tab="spectator" role="tab">👀 Khán giả</button>
+  </nav>
+
+  <section class="tab-panel active" data-panel="host">
+    <p class="muted">Người điều khiển phòng: mở/đóng bid, chốt lượt, công bố kết quả.</p>
+    <label class="field">
+      <span>Mã phòng</span>
+      <input id="hostRoom" type="text" value="demo" maxlength="24" placeholder="vd: demo" />
+    </label>
+    <label class="field">
+      <span>Mật khẩu host</span>
+      <input id="hostSecret" type="password" placeholder="••••••" />
+    </label>
+    <button class="btn btn-primary" id="hostGo">Vào phòng Host</button>
+  </section>
+
+  <section class="tab-panel" data-panel="player">
+    <p class="muted">Chọn tên bạn và nhập mật khẩu riêng để vào phòng đấu giá.</p>
+    <label class="field">
+      <span>Mã phòng</span>
+      <input id="playerRoom" type="text" value="demo" maxlength="24" />
+    </label>
+    <div class="field">
+      <span>Tôi là</span>
+      <div class="female-picker" id="femalePicker"></div>
+    </div>
+    <label class="field">
+      <span>Mật khẩu riêng</span>
+      <input id="playerSecret" type="password" placeholder="••••••" />
+    </label>
+    <button class="btn btn-primary" id="playerGo">Vào phòng đấu giá</button>
+  </section>
+
+  <section class="tab-panel" data-panel="spectator">
+    <p class="muted">Xem trực tiếp diễn biến, không thể bid. Hoàn hảo để chiếu lên máy chiếu.</p>
+    <label class="field">
+      <span>Mã phòng</span>
+      <input id="specRoom" type="text" value="demo" maxlength="24" />
+    </label>
+    <button class="btn btn-primary" id="specGo">Xem bảng đấu giá</button>
+  </section>
+
+  <footer class="brand-foot">
+    <a href="test/tests.html">🧪 Chạy unit test engine</a>
+    <a href="docs/LUAT-DAU-GIA.md" target="_blank" rel="noopener">📖 Đọc luật đấu giá</a>
+  </footer>
+</main>
+
+<script type="module" src="js/pages/landing.js"></script>
+</body>
+</html>

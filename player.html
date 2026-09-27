@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Đấu giá — Người chơi</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">🙋 <span id="playerName">Người chơi</span></div>
+  <div class="right">
+    <span id="modeBadge" class="mode-badge"></span>
+    <span class="pill lobby" id="phasePill">Sảnh chờ</span>
+    <span>Phòng: <b id="roomCode">—</b></span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="grid-2">
+    <!-- ===== CỘT TRÁI: ĐẶT GIÁ ===== -->
+    <div class="stack">
+      <div class="panel" id="myCardPanel">
+        <h3>💰 Ngân sách của bạn</h3>
+        <div class="stat-grid">
+          <div class="stat"><div class="v" id="myBudget">0</div><div class="l">Tổng ngân sách</div></div>
+          <div class="stat"><div class="v" id="mySpent">0</div><div class="l">Đã chi</div></div>
+          <div class="stat"><div class="v" id="myLeft">0</div><div class="l">Còn lại</div></div>
+        </div>
+        <div class="budget-bar mt"><i id="myBar" style="width:0%"></i></div>
+      </div>
+
+      <div class="panel" id="bidPanel">
+        <h3>🎯 Đặt giá <span class="count" id="bidRound">Vòng 1</span></h3>
+
+        <div id="waitBox">
+          <p class="muted center">Đang chờ host bắt đầu lượt đấu giá…</p>
+          <div class="countdown" id="countdownIdle">--:--</div>
+        </div>
+
+        <div id="formBox" class="hidden">
+          <div class="countdown mb" id="countdown">01:00</div>
+
+          <div class="field">
+            <span>Số điểm bạn muốn trả</span>
+            <input id="bidAmount" type="number" min="0" step="1" value="0" />
+          </div>
+
+          <div class="stack mb">
+            <div class="btn-row">
+              <button class="btn btn-ghost btn-sm" data-quick="min">Giá sàn</button>
+              <button class="btn btn-ghost btn-sm" data-quick="plus">+5</button>
+              <button class="btn btn-ghost btn-sm" data-quick="plus10">+10</button>
+              <button class="btn btn-ghost btn-sm" data-quick="max">Tối đa</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-ghost btn-sm" data-quick="skip">Bỏ qua (0)</button>
+            </div>
+          </div>
+
+          <div id="bidHint" class="muted center mb"></div>
+          <div id="bidError" class="warn-box mb hidden"></div>
+
+          <button class="btn btn-primary" id="btnBid">✅ Xác nhận đặt giá</button>
+          <div id="bidStatus" class="mt center"></div>
+        </div>
+
+        <div id="revealBox" class="hidden"></div>
+      </div>
+
+      <div class="panel">
+        <h3>📜 Lịch sử của bạn</h3>
+        <div class="list" id="myLog"></div>
+      </div>
+    </div>
+
+    <!-- ===== CỘT PHẢI: THÔNG TIN & ĐỘI HÌNH ===== -->
+    <div class="stack">
+      <div class="panel">
+        <h3>🏸 Nam đang đấu giá</h3>
+        <div id="auctionArea"><p class="muted center">Chưa bắt đầu.</p></div>
+      </div>
+
+      <div class="panel">
+        <h3>🤝 Đồng đội của bạn</h3>
+        <div id="myTeam"></div>
+      </div>
+
+      <div class="panel">
+        <h3>🧑‍🤝‍🧑 Các đội khác <span class="count" id="othersCount">0/5</span></h3>
+        <div class="teams" id="otherTeams"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module" src="js/pages/player.js"></script>
+</body>
+</html>

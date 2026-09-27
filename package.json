@@ -1,0 +1,15 @@
+{
+  "name": "cau-long-auction",
+  "version": "1.0.0",
+  "description": "Đấu giá cầu thủ cầu lông online — HTML/CSS/JS + Firebase Realtime",
+  "type": "module",
+  "scripts": {
+    "test": "node test/run-tests.mjs",
+    "simulate": "node test/simulate.mjs",
+    "start": "npx --yes serve -l 5173 .",
+    "dev": "npx --yes serve -l 5173 ."
+  },
+  "keywords": ["auction", "badminton", "firebase", "realtime", "vanilla-js"],
+  "license": "MIT",
+  "private": true
+}

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Unit Test — Engine đấu giá</title>
+<link rel="stylesheet" href="../css/style.css" />
+<style>
+  .test-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; background: rgba(0,0,0,.22); font-size: .86rem; }
+  .test-row.pass { border-left: 3px solid var(--accent); }
+  .test-row.fail { border-left: 3px solid var(--danger); background: rgba(255,93,115,.1); }
+  .test-row .icon { font-size: 1rem; }
+  .test-row .err { color: var(--danger); font-size: .76rem; margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="wrap" style="max-width:820px">
+  <div class="panel">
+    <h3>🧪 Unit Test — Engine đấu giá</h3>
+    <p class="muted">Kiểm thử logic thuần (ngân sách, giá sàn, validate, tie-break, vòng bổ sung, bất biến).</p>
+    <div class="stat-grid mb">
+      <div class="stat"><div class="v" id="tTotal">0</div><div class="l">Tổng</div></div>
+      <div class="stat"><div class="v" id="tPass" style="color:var(--accent)">0</div><div class="l">Pass</div></div>
+      <div class="stat"><div class="v" id="tFail" style="color:var(--danger)">0</div><div class="l">Fail</div></div>
+      <div class="stat"><div class="v" id="tMs">0</div><div class="l">ms</div></div>
+    </div>
+    <button class="btn btn-primary mb" id="btnRun">▶️ Chạy lại test</button>
+    <div class="list" id="results" style="max-height:none"></div>
+  </div>
+</div>
+
+<script type="module">
+import { runTests } from './cases.js';
+
+function render() {
+  const t0 = performance.now();
+  const results = runTests();
+  const ms = Math.round(performance.now() - t0);
+  const pass = results.filter(r => r.ok).length;
+  const fail = results.length - pass;
+
+  document.getElementById('tTotal').textContent = results.length;
+  document.getElementById('tPass').textContent = pass;
+  document.getElementById('tFail').textContent = fail;
+  document.getElementById('tMs').textContent = ms;
+
+  document.getElementById('results').innerHTML = results.map(r => `
+    <div class="test-row ${r.ok ? 'pass' : 'fail'}">
+      <span class="icon">${r.ok ? '✅' : '❌'}</span>
+      <span>${r.name}</span>
+      ${r.ok ? '' : `<span class="err">${r.error}</span>`}
+    </div>`).join('');
+}
+document.getElementById('btnRun').addEventListener('click', render);
+render();
+</script>
+</body>
+</html>
